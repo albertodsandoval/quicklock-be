@@ -1,11 +1,19 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
+from django.shortcuts import render
 import json
 
-latest_card_id = None
+latest_card_id = None  # global store
 
+@csrf_exempt
+def latest_card(request):
+    global latest_card_id
+    return JsonResponse({"card_id": latest_card_id})
+
+@csrf_exempt
 def index(request):
-    return HttpResponse(open("embedded/templates/index.html").read())
+    global latest_card_id
+    return render(request, "index.html", {"card_id": latest_card_id})
 
 @csrf_exempt
 def return_card_id(request):
@@ -24,7 +32,3 @@ def return_card_id(request):
             return JsonResponse({"status": "error", "message": "No card_id provided"}, status=400)
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=400)
-
-@csrf_exempt
-def latest_card(request):
-    return JsonResponse({"card_id": latest_card_id})
