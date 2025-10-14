@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Card Scanner</title>
+</head>
+<body>
+    <h1>Latest Card ID</h1>
+    <div id="cardId">Waiting for a card...</div>
+
+    <script>
+        async function fetchCard() {
+            try {
+                const response = await fetch('/embedded/latest_card/');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('cardId').textContent = data.card_id || "No card yet";
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Poll the server every 1 second
+        setInterval(fetchCard, 5000);
+        fetchCard(); // initial fetch
+    </script>
+</body>
+</html>
