@@ -1,9 +1,28 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
+from rest_framework.decorators import api_view
 from django.shortcuts import render
+from .models import Keys
+from .serializers import KeySerializer
+from rest_framework.response import Response
+from rest_framework import status
 import json
 
 latest_card_id = None  # global store
+
+@api_view(['GET'])
+def get_keys(request):
+    keys = Keys.objects.all()
+    serializer = KeySerializer(keys, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+def create_key(request):
+    serializer = KeySerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Repesponse(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @csrf_exempt
 def latest_card(request):
