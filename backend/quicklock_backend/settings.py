@@ -19,6 +19,9 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# login redirect
+LOGIN_REDIRECT_URL = "/"
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -29,7 +32,7 @@ SECRET_KEY = 'django-insecure-cm*27qqkj4l9+9)(@rp4j#8*!8-j7wvodxt%vk*9jy^zsj6mu$
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["192.168.4.131", "127.0.0.1", "100.115.122.27"]
+ALLOWED_HOSTS = ["192.168.4.131", "127.0.0.1", "100.115.122.27", "ep-purple-star-adify3rd.c-2.us-east-1.aws.neon.tech"]
 
 
 # Application definition
@@ -61,7 +64,7 @@ ROOT_URLCONF = 'quicklock_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -87,6 +90,9 @@ DATABASES = {
         "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
         "HOST": os.getenv("POSTGRES_HOST"),
         "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
     }
 }
 
