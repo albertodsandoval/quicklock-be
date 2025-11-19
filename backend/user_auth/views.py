@@ -5,6 +5,9 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 import json
+from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
+
 
 # Create your views here.
 
@@ -23,11 +26,15 @@ def get_user(request):
     serializer = UserSerializer(user)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+@csrf_exempt
 @api_view(['POST'])
 def register_user(request):
-	serializer = UserSerializer(data=request.data)
-	if serializer.is_valid():
-		serializer.save()
-		return Response(serializer.data, status=status.HTTP_201_CREATED)
-	return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    data = request.data.copy()
+    data['date_joined'] = timezone.now()
+    serializer = UserSerializer(data=data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
