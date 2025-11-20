@@ -2,7 +2,8 @@ from django.shortcuts import render
 from .serializer import UserSerializer
 from .models import AuthUser
 from django.contrib.auth.models import User
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 import json
@@ -11,6 +12,7 @@ from django.utils import timezone
 
 # Create your views here.
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def register_user(request):
     username = request.data.get("username")
     email = request.data.get("email")
