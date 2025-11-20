@@ -32,8 +32,7 @@ SECRET_KEY = 'django-insecure-cm*27qqkj4l9+9)(@rp4j#8*!8-j7wvodxt%vk*9jy^zsj6mu$
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["192.168.4.131", "127.0.0.1", "100.115.122.27", "192.168.0.227", "ep-purple-star-adify3rd.c-2.us-east-1.aws.neon.tech", "nonreturnable-incalculably-suzie.ngrok-free.dev"]
-
+ALLOWED_HOSTS = ["*"]
 
 # Application definition
 from datetime import timedelta
