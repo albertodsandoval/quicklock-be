@@ -6,6 +6,7 @@ from .models import Keys
 from .serializers import KeySerializer
 from rest_framework.response import Response
 from rest_framework import status
+from django.contrib.auth.models import User
 import json
 
 latest_card_id = None  # global store
