@@ -36,6 +36,26 @@ ALLOWED_HOSTS = ["192.168.4.131", "127.0.0.1", "100.115.122.27", "192.168.0.227"
 
 
 # Application definition
+from datetime import timedelta
+from rest_framework.settings import api_settings
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,           # rotate on refresh (recommended)
+    "BLACKLIST_AFTER_ROTATION": True,        # so old refresh becomes invalid
+    "AUTH_HEADER_TYPES": ("Bearer",),        # Authorization: Bearer <token>
+    "UPDATE_LAST_LOGIN": True,               # optional: updates last_login
+}
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -55,7 +75,6 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -78,10 +97,12 @@ TEMPLATES = [
     },
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:8081",
-    "http://localhost:8081",
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "http://127.0.0.1:8081",
+#     "http://localhost:8081",
+# ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 WSGI_APPLICATION = 'quicklock_backend.wsgi.application'
