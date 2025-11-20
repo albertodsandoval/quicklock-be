@@ -1,4 +1,3 @@
-from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
 from rest_framework.decorators import api_view
 from django.shortcuts import render
@@ -24,17 +23,14 @@ def create_key(request):
         return Repesponse(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@csrf_exempt
 def latest_card(request):
     global latest_card_id
     return JsonResponse({"card_id": latest_card_id})
 
-@csrf_exempt
 def index(request):
     global latest_card_id
     return render(request, "index.html", {"card_id": latest_card_id})
 
-@csrf_exempt
 def return_card_id(request):
     global latest_card_id
     if request.method != "POST":
