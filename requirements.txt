@@ -1,0 +1,7 @@
+Django==5.2.8
+djangorestframework==3.16.1
+djangorestframework_simplejwt==5.5.1
+factory_boy==3.3.3
+python-dotenv==1.2.1
+django-cors-headers
+psycopg2
