@@ -1,7 +1,5 @@
 from django.db import models
 
-# Create your models here.
-
 class AuthUser(models.Model):
     password = models.CharField(max_length=128)
     last_login = models.DateTimeField(blank=True, null=True)

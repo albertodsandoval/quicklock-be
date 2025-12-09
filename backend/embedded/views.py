@@ -1,9 +1,10 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
-from .models import Keys, Locks, AuthUser, KeyLockPermissions
-from .serializers import KeySerializer, LockIdSerializer, CardRequestSerializer
+from .models import Keys, Locks, AuthUser, KeyLockPermissions, UnlockAttempts
+from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptSerializer
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from datetime import datetime
 
 
 class RequestStatusView(APIView):
@@ -66,10 +67,7 @@ class MobileLockAccessView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-
         lock_status = lock.status
-
-        print(lock_status)
 
         if(has_access):
             lock_status = not lock_status
@@ -77,6 +75,29 @@ class MobileLockAccessView(APIView):
         lock.status = lock_status
         lock.save()
 
+        perm_row = (
+            KeyLockPermissions.objects
+            .filter(
+                key__assigned_user=auth_user,
+                lock__lock_id=lock_id,
+            )
+            .order_by('key_id')
+            .values('key_id')
+            .first()
+        )        
+        key = Keys.objects.get(pk=perm_row['key_id']) if perm_row else None
+
+        attempt_data = {
+            "result": "granted" if has_access else "denied",
+            "attempted_at": datetime.now(),
+            "user": auth_user.id,        # FK → pass the ID
+            "lock": lock.lock_id,        # or lock.id, depending on your model
+            "key": key.key_id if key else None,
+        }
+
+        attempt_serializer = UnlockAttemptSerializer(data=attempt_data)
+        attempt_serializer.is_valid(raise_exception=True)
+        attempt_serializer.save()
 
         return Response(
             {

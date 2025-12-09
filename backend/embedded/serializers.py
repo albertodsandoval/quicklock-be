@@ -1,10 +1,15 @@
-from rest_framework.serializers import ModelSerializer
+from rest_framework.serializers import ModelSerializer 
 from rest_framework import serializers
-from .models import Keys
+from .models import Keys, UnlockAttempts
 
 class KeySerializer(ModelSerializer):
 	class Meta:
 		model = Keys
+		fields = '__all__'
+
+class UnlockAttemptSerializer(ModelSerializer):
+	class Meta:
+		model = UnlockAttempts
 		fields = '__all__'
 
 
