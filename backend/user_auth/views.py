@@ -1,50 +1,71 @@
 from django.shortcuts import render
-from .serializer import UserSerializer
+from .serializer import UserSerializer, RegistrationSerializer
 from .models import AuthUser
 from django.contrib.auth.models import User
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework import status
 from django.core.mail import send_mail
 from django.conf import settings
-import json
 from pathlib import Path
 from django.utils import timezone
+from django.http import JsonResponse, HttpResponse
+from rest_framework.views import APIView
+from rest_framework import status, permissions
+import json
 
 
-# Create your views here.
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def register_user(request):
-    username = request.data.get("username")
-    email = request.data.get("email")
-    password = request.data.get("password")
+class UserInfoView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
 
-    if not username or not email or not password:
-        return Response({"detail": "username, email, and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+    def get(self, request):
+        username = request.user.username
+        email = request.user.email
 
-    if User.objects.filter(username=username).exists():
-        return Response({"detail": "username already exists"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+                {
+                    "username": username,
+                    "email": email,
+                },
+            )
+ 
 
-    user = User.objects.create_user(username=username, email=email, password=password)
-    user.save()
+class RegisterUserView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+
+        serializer = RegistrationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
 
-    file_path = Path(settings.BASE_DIR) / "user_auth" / "registration_email.txt"
+        username = serializer.validated_data['username']
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
+        
+        if User.objects.filter(username=username).exists():
+            return Response({"detail": "username already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
-    try:
-        send_mail(
-            "Welcome to QuickLock!",
-            import_file(file_path),
-            settings.DEFAULT_FROM_EMAIL,
-            [email],
-            fail_silently=False,
-        )
-        return Response({"detail": f"User {user.username} created successfully"}, status=status.HTTP_201_CREATED)
+        user = User.objects.create_user(username=username, email=email, password=password)
+        user.save()
 
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
+
+        file_path = Path(settings.BASE_DIR) / "user_auth" / "registration_email.txt"
+
+
+        try:
+            send_mail(
+                "Welcome to QuickLock!",
+                import_file(file_path),
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+            return Response({"message": "Email sent successfully!"})
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
 
 
 @api_view(['GET'])
