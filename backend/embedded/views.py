@@ -67,6 +67,7 @@ class MobileLockAccessView(APIView):
                 status=status.HTTP_200_OK,
             )
 
+
         lock_status = lock.status
 
         if(has_access):
@@ -151,6 +152,19 @@ class CardLockAccessView(APIView):
         ).exists()
 
         lock_status = lock.status
+
+        attempt_data = {
+            "result": "granted" if has_access else "denied",
+            "attempted_at": datetime.now(),
+            "user": 39,        # FK → pass the ID
+            "lock": lock.lock_id,        # or lock.id, depending on your model
+            "key": key.key_id if key else None,
+        }
+
+        attempt_serializer = UnlockAttemptSerializer(data=attempt_data)
+        attempt_serializer.is_valid(raise_exception=True)
+        attempt_serializer.save()
+
 
         if(has_access):
             lock_status = not lock_status
