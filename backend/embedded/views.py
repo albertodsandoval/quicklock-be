@@ -144,7 +144,7 @@ class CardLockAccessView(APIView):
         return Response(
             {
                 "lock_id": lock_id,
-                "status": lock_status,
+                "lock_status": lock_status,
             },
             status=status.HTTP_200_OK,
         )
