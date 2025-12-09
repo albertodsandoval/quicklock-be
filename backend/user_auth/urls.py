@@ -14,4 +14,5 @@ class LoginView(TokenObtainPairView):
 urlpatterns = [
     path('register_user/', views.register_user),
     path("login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("test_email/", views.send_email),
 ]
