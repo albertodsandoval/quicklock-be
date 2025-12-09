@@ -8,7 +8,7 @@ class KeySerializer(ModelSerializer):
 		fields = '__all__'
 
 
-class PhoneRequestSerializer(serializers.Serializer):
+class LockIdSerializer(serializers.Serializer):
     lock_id = serializers.CharField()
 
 class CardRequestSerializer(serializers.Serializer):
