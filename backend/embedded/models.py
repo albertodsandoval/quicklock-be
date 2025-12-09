@@ -126,7 +126,7 @@ class KeyLockPermissions(models.Model):
     key = models.ForeignKey('Keys', models.DO_NOTHING)
     lock = models.ForeignKey('Locks', models.DO_NOTHING)
     created_at = models.DateTimeField()
-    created_by_administrator = models.ForeignKey('AuthUser', models.DO_NOTHING, blank=True, null=True)
+    created_by_administrator = models.ForeignKey(AuthUser, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -165,13 +165,14 @@ class Locks(models.Model):
 
 class UnlockAttempts(models.Model):
     attempt_id = models.BigAutoField(primary_key=True)
-    user = models.ForeignKey('AuthUser', models.DO_NOTHING)
+    user = models.ForeignKey(AuthUser, models.DO_NOTHING, blank=True, null=True)
     lock = models.ForeignKey(Locks, models.DO_NOTHING)
-    key = models.ForeignKey(Keys, models.DO_NOTHING)
+    key = models.ForeignKey(Keys, models.DO_NOTHING, blank=True, null=True)
     presented_credential = models.TextField(blank=True, null=True)
-    result = models.TextField()  # This field type is a guess.
     reason = models.TextField(blank=True, null=True)
     attempted_at = models.DateTimeField()
+    permission = models.TextField()  # This field type is a guess.
+    result = models.BooleanField(blank=True, null=True)
 
     class Meta:
         managed = False

@@ -33,7 +33,6 @@ class RegisterUserView(APIView):
         serializer = RegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-
         username = serializer.validated_data['username']
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
