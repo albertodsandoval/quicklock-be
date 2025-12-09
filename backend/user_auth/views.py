@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from .serializer import UserSerializer, RegistrationSerializer
+from .serializer import UserSerializer, RegistrationSerializer, SendEmailSerializer 
 from .models import AuthUser
 from django.contrib.auth.models import User
 from rest_framework.decorators import api_view, permission_classes
@@ -49,6 +49,35 @@ class RegisterUserView(APIView):
         user = User.objects.create_user(username=username, email=email, password=password)
         user.save()
 
+
+        file_path = Path(settings.BASE_DIR) / "user_auth" / "registration_email.txt"
+
+
+        try:
+            send_mail(
+                "Welcome to QuickLock!",
+                import_file(file_path),
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+            return Response({"message": "Email sent successfully!"})
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+
+class SendEmailView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+
+        serializer = SendEmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+
+        email = serializer.validated_data['email']
 
         file_path = Path(settings.BASE_DIR) / "user_auth" / "registration_email.txt"
 

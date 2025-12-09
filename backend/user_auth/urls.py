@@ -1,5 +1,5 @@
 from django.urls import path, include
-from .views import UserInfoView, RegisterUserView
+from .views import UserInfoView, RegisterUserView, SendEmailView
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,   # login (get access+refresh)
@@ -10,5 +10,6 @@ from rest_framework_simplejwt.views import (
 urlpatterns = [
     path('register_user/', RegisterUserView.as_view()),
     path("login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("test_email/", SendEmailView.as_view()),
     path("user_info/", UserInfoView.as_view())
 ]
