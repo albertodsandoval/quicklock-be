@@ -1,11 +1,6 @@
 from django.urls import path, include
 from .views import UserInfoView, RegisterUserView, SendEmailView
-from rest_framework.permissions import AllowAny
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,   # login (get access+refresh)
-    TokenRefreshView,      # rotate/refresh access using refresh
-    TokenVerifyView,       # verify a token’s signature/expiry
-)
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 urlpatterns = [
     path('register_user/', RegisterUserView.as_view()),

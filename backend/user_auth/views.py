@@ -1,6 +1,4 @@
-from django.shortcuts import render
-from .serializer import UserSerializer, RegistrationSerializer, SendEmailSerializer 
-from .models import AuthUser
+from .serializer import RegistrationSerializer, SendEmailSerializer 
 from django.contrib.auth.models import User
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -8,11 +6,8 @@ from rest_framework.response import Response
 from django.core.mail import send_mail
 from django.conf import settings
 from pathlib import Path
-from django.utils import timezone
-from django.http import JsonResponse, HttpResponse
 from rest_framework.views import APIView
 from rest_framework import status, permissions
-import json
 
 
 class UserInfoView(APIView):
