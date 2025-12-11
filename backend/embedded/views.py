@@ -1,11 +1,14 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
 from .models import Keys, Locks, AuthUser, KeyLockPermissions, UnlockAttempts
-from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptSerializer
+from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptSerializer, UnlockAttemptMiniSerializer
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from django.core import serializers
 from datetime import datetime
 from django.db.models import Q
+from django.http import JsonResponse
+
 
 
 class RequestStatusView(APIView):
@@ -213,8 +216,25 @@ class CardLockAccessView(APIView):
             "presented_credential": uid,
             "reason": "This user does not possess a key with permission to this lock."
         }
+
         return unlock_attempt(attempt_data)
 
+
+class LogsByUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UnlockAttemptMiniSerializer
+
+    def get(self, request):
+        user = request.user
+
+        logs = UnlockAttempts.objects.filter(
+            user__username=user
+        ).order_by('-attempted_at')
+
+        return Response(
+            UnlockAttemptMiniSerializer(logs, many=True).data,
+            status=status.HTTP_200_OK,
+        )
 
 def unlock_attempt(attempt_data):
     attempt_serializer = UnlockAttemptSerializer(data=attempt_data)
