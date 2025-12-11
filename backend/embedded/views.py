@@ -5,6 +5,7 @@ from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptS
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from datetime import datetime
+from django.db.models import Q
 
 
 class RequestStatusView(APIView):
@@ -80,10 +81,16 @@ class MobileLockAccessView(APIView):
 
             return unlock_attempt(attempt_data)
 
+        now = datetime.now()
+
         # Check if this user has a key that can open this lock
         has_access = KeyLockPermissions.objects.filter(
             key__assigned_user=auth_user,
-            lock__lock_id=lock_id
+            lock__lock_id=lock_id,
+            key__is_revoked = False,
+            key__not_valid_before__lte = now,
+        ).filter(
+            Q(key__not_valid_after__isnull = True) | Q(key__not_valid_after__gte = now)
         ).exists()
 
         # if user has key but not a valid one
@@ -128,6 +135,7 @@ class MobileLockAccessView(APIView):
         }
 
         return unlock_attempt(attempt_data)
+
 
 class CardLockAccessView(APIView):
     permission_classes = [permissions.AllowAny]
