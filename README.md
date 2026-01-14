@@ -27,12 +27,12 @@ To create a virtual environment:
 * Run ```python -m venv {env name}``` to create virtual environment
 * **ON WINDOWS:** Run ```{env name}\Scripts\activate``` to activate it
 * **ON MAC:** Run ```source {env name}/bin/activate``` to activate it
-### Download requirements
+### Third, download requirements
 Now we are going to use pip (comes with python) to install all the requirements.
 
 * Make sure you are in the directory containing "requirements.txt" 
 * Run ```pip install -r requirements.txt```
-### Create .env
+### Fourth, create .env
 We need to create a ".env" file to fill out information specific to you.
 * Navigate to the main directory
 * Create a new file called ".env"
@@ -40,7 +40,7 @@ We need to create a ".env" file to fill out information specific to you.
 * Fill out POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_HOST
  * Contact me at alberto.sandoval.domingo@gmail.com if you need this info
 
-### Run the server!
+### Fifth, run the server!
 Now all we need to do is run the server.
 * CD into the "\backend" directory, you should see "manage.py" and other directories
 * Run ```py manage.py runserver```
