@@ -41,6 +41,10 @@ class RegisterUserView(APIView):
             return Response({"detail": "username already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
         user = User.objects.create_user(username=username, email=email, password=password)
+        
+        if serializer.validated_data['admin'] == True:
+            user.is_staff = True
+
         user.save()
 
 
@@ -61,58 +65,25 @@ class RegisterUserView(APIView):
             return Response({"error": str(e)}, status=500)
 
 
+class UserByEmailView(APIView):
+    permission_classes = [permissions.IsAdminUser]
 
-class SendEmailView(APIView):
-    permission_classes = [permissions.AllowAny]
+    def post(self, request):
 
-    def get(self, request):
+        user_email = request.data.get('user_email')
 
-        serializer = SendEmailSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        user = User.objects.filter(email = user_email).first()
 
-
-        email = serializer.validated_data['email']
-
-        file_path = Path(settings.BASE_DIR) / "user_auth" / "registration_email.txt"
-
-
-        try:
-            send_mail(
-                "Welcome to QuickLock!",
-                import_file(file_path),
-                settings.DEFAULT_FROM_EMAIL,
-                [email],
-                fail_silently=False,
-            )
-            return Response({"message": "Email sent successfully!"})
-
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
-
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def send_email(request):
-
-    email = request.data.get("email")
-
-    file_path = Path(settings.BASE_DIR) / "user_auth" / "registration_email.txt"
-
-    try:
-        send_mail(
-            "Welcome to QuickLock!",
-            import_file(file_path),
-            settings.DEFAULT_FROM_EMAIL,
-            [email],
-            fail_silently=False,
+        return Response(
+            {
+                "username": user.username
+            }, 
+            status = status.HTTP_200_OK
         )
-        return Response({"message": "Email sent successfully!"})
-
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
 
 
+
+# file importer
 def import_file(file_path):
     try:
         with open(file_path, "r", encoding="utf-8") as f:
