@@ -11,6 +11,7 @@ class RegistrationSerializer(serializers.Serializer):
 	username = serializers.CharField()
 	email = serializers.CharField()
 	password = serializers.CharField()
+	admin = serializers.BooleanField()
 
 class SendEmailSerializer(serializers.Serializer):
 	username = serializers.CharField()
