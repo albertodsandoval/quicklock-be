@@ -1,10 +1,18 @@
 from rest_framework.serializers import ModelSerializer 
 from rest_framework import serializers
-from .models import Keys, UnlockAttempts, AuthUser, Locks
+from .models import Keys, UnlockAttempts, AuthUser, Locks, KeyLockPermissions
+from django.db.models import BigAutoField
+
+
 
 class KeySerializer(ModelSerializer):
 	class Meta:
 		model = Keys
+		fields = '__all__'
+
+class KeyLockPermissionSerializer(ModelSerializer):
+	class Meta:
+		model = KeyLockPermissions
 		fields = '__all__'
 
 class UnlockAttemptSerializer(ModelSerializer):
@@ -48,9 +56,10 @@ class UnlockAttemptMiniSerializer(serializers.Serializer):
 
 class KeyGenerationSerializer(serializers.ModelSerializer):
 	username = serializers.CharField()
+	lock_id = serializers.IntegerField()
 	class Meta: 
 		model = Keys
-		fields = ['username','not_valid_after','not_valid_before','key_name']
+		fields = ['username','not_valid_after','not_valid_before','key_name','lock_id']
 
 class KeySerializer(serializers.ModelSerializer):
 	created_at = serializers.DateTimeField(required=False)

@@ -1,13 +1,14 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
 from .models import Keys, Locks, AuthUser, KeyLockPermissions, UnlockAttempts
-from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptSerializer, UnlockAttemptMiniSerializer, KeyGenerationSerializer, KeySerializer
+from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptMiniSerializer, KeyGenerationSerializer, KeySerializer
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.core import serializers
-from datetime import datetime
+from django.utils import timezone
 from django.db.models import Q
 from django.http import JsonResponse
+from .utils import create_key, test_user_access, unlock_attempt, validate_data, create_key_lock_permission
 
 
 
@@ -61,7 +62,7 @@ class MobileLockAccessView(APIView):
                 "user": auth_user.id,       
                 "lock": lock_id,     
                 "reason": "Lock does not exist",
-                "attempted_at":datetime.now()
+                "attempted_at":timezone.now()
             }
             # lock means no access
             return unlock_attempt(attempt_data)
@@ -79,22 +80,15 @@ class MobileLockAccessView(APIView):
                 "lock": lock_id,     
                 "reason": "User has no keys.",
                 "result": lock.status,
-                "attempted_at":datetime.now()
+                "attempted_at":timezone.now()
             }
 
             return unlock_attempt(attempt_data)
 
-        now = datetime.now()
+        now = timezone.now()
 
         # Check if this user has a key that can open this lock
-        has_access = KeyLockPermissions.objects.filter(
-            key__assigned_user=auth_user,
-            lock__lock_id=lock_id,
-            key__is_revoked = False,
-            key__not_valid_before__lte = now,
-        ).filter(
-            Q(key__not_valid_after__isnull = True) | Q(key__not_valid_after__gte = now)
-        ).exists()
+        has_access = test_user_access(auth_user, lock_id)
 
         # if user has key but not a valid one
         if (not has_access):
@@ -104,7 +98,7 @@ class MobileLockAccessView(APIView):
                 "lock": lock_id,        # or lock.id, depending on your model
                 "reason": "User has no valid key for this lock.",
                 "result": lock.status,
-                "attempted_at":datetime.now()
+                "attempted_at":timezone.now()
             }
 
             return unlock_attempt(attempt_data)
@@ -114,27 +108,30 @@ class MobileLockAccessView(APIView):
         lock.status = lock_status
         lock.save()
 
-        keylockperm = (
+        key_id_row = (
             KeyLockPermissions.objects
             .filter(
                 key__assigned_user=auth_user,
-                lock__lock_id=lock_id,
+                lock_id=lock_id,  # FK column, safest
+                key__is_revoked=False,
+                key__not_valid_before__lte=now,
             )
-            .order_by('key_id')
-            .values('key_id')
+            .filter(Q(key__not_valid_after__isnull=True) | Q(key__not_valid_after__gte=now))
+            .order_by("-key__not_valid_before", "-key_id")   # pick “most recent” valid key
+            .values("key_id")
             .first()
         )
 
-        key = Keys.objects.get(key_id=keylockperm['key_id'])
+        key_id = key_id_row["key_id"]
 
 
         attempt_data = {
             "permission": "granted",
             "user": auth_user.id,
             "lock": lock_id,
-            "key": key.key_id,
+            "key": key_id,
             "result": lock.status,
-            "attempted_at":datetime.now()
+            "attempted_at":timezone.now()
         }
 
         return unlock_attempt(attempt_data)
@@ -158,7 +155,7 @@ class CardLockAccessView(APIView):
                 "permission": "denied",
                 "lock": lock_id,
                 "reason": "Lock does not exist",
-                "attempted_at":datetime.now(),
+                "attempted_at":timezone.now(),
                 "presented_credential": uid
             }
 
@@ -175,7 +172,7 @@ class CardLockAccessView(APIView):
                 "lock": lock_id,
                 "reason": "Key does not exist",
                 "result": lock_status,
-                "attempted_at":datetime.now(),
+                "attempted_at":timezone.now(),
                 "presented_credential": uid
             }
 
@@ -196,7 +193,7 @@ class CardLockAccessView(APIView):
 
             attempt_data = {
                 "permission": "granted",
-                "attempted_at": datetime.now(),
+                "attempted_at": timezone.now(),
                 "user": auth_user.id,        # FK → pass the ID
                 "lock": lock_id,        # or lock.id, depending on your model
                 "key": key.key_id if key else None,
@@ -208,7 +205,7 @@ class CardLockAccessView(APIView):
 
         attempt_data = {
             "permission": "denied",
-            "attempted_at": datetime.now(),
+            "attempted_at": timezone.now(),
             "user": auth_user.id,        # FK → pass the ID
             "lock": lock_id,        # or lock.id, depending on your model
             "key": key.key_id if key else None,
@@ -246,73 +243,46 @@ class GenerateKeyView(APIView):
         serializer.is_valid(raise_exception=True)
 
         # users involved
-        admin_user = request.user.username # admin username
-        assigned_user = serializer.validated_data['username']
+        admin_user = request.user
+        assigned_user = AuthUser.objects.filter(username=serializer.validated_data['username']).first()
 
         # conditions
         end_date = serializer.validated_data["not_valid_after"]
         start_date = serializer.validated_data["not_valid_before"]
         key_name = serializer.validated_data["key_name"]
+        lock_id = serializer.validated_data["lock_id"]
 
-        if not AuthUser.objects.filter(username=assigned_user).exists():
-            return Response(
-                {
-                    "detail": "Assigned user not found!",
-                    "status": "Unsuccessful",
-                    "admin_user":admin_user,
-                    "assigned_user":assigned_user
-                },
-                status = status.HTTP_400_BAD_REQUEST
-            )
+        response = validate_data(assigned_user, admin_user, start_date, end_date, lock_id)
 
-        if not AuthUser.objects.filter(username=admin_user, is_staff=True).exists():
-            return Response(
-                {
-                    "detail": "Admin user not found!",
-                    "status": "Unsuccessful"
-                },
-                status = status.HTTP_400_BAD_REQUEST
-            )
-
-        if start_date > end_date:
-            return Response(
-                {
-                    "detail": "Start date is after end date?!?!",
-                    "status": "Unsuccessful"
-                },
-                status = status.HTTP_400_BAD_REQUEST
-            )
-
-        key = {
-            "assigned_user":AuthUser.objects.get(username=assigned_user).id,
-            "administrator":AuthUser.objects.get(username=admin_user).id,
+        if response:
+            return response
+        key_data = {
+            "assigned_user":assigned_user.id,
+            "administrator":admin_user.id,
             "key_name":key_name,
             "not_valid_after":end_date,
             "not_valid_before":start_date,
             "is_revoked": False,
         }
 
-        key_serializer = KeySerializer(data=key)
-        key_serializer.is_valid(raise_exception=True)
-        key_serializer.save()
+        key = create_key(key_data)
 
-        return Response(
-            key,
-            status=status.HTTP_201_CREATED
+        print(key)
+
+        key_lock_permission_data = {
+            "key": key.key_id,
+            "lock": lock_id,
+            "created_at": timezone.now(),
+            "created_by_administrator": admin_user.id
+        }
+
+        key_lock_permission = create_key_lock_permission(
+            key_id=key.key_id,
+            lock_id=lock_id,
+            admin_user=admin_user
         )
 
-
-
-
-
-
-
-def unlock_attempt(attempt_data):
-    attempt_serializer = UnlockAttemptSerializer(data=attempt_data)
-    attempt_serializer.is_valid(raise_exception=True)
-    attempt_serializer.save()
-    
-    return Response(
-        attempt_data,
-        status=status.HTTP_200_OK,
-    )
+        return Response(
+            key_lock_permission,
+            status=status.HTTP_201_CREATED
+        )
