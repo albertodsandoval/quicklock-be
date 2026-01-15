@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
 from .models import Keys, Locks, AuthUser, KeyLockPermissions, UnlockAttempts
-from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptSerializer, UnlockAttemptMiniSerializer
+from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptSerializer, UnlockAttemptMiniSerializer, KeyGenerationSerializer, KeySerializer
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.core import serializers
@@ -235,6 +235,77 @@ class LogsByUserView(APIView):
             UnlockAttemptMiniSerializer(logs, many=True).data,
             status=status.HTTP_200_OK,
         )
+
+
+class GenerateKeyView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+
+        serializer = KeyGenerationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # users involved
+        admin_user = request.user.username # admin username
+        assigned_user = serializer.validated_data['username']
+
+        # conditions
+        end_date = serializer.validated_data["not_valid_after"]
+        start_date = serializer.validated_data["not_valid_before"]
+        key_name = serializer.validated_data["key_name"]
+
+        if not AuthUser.objects.filter(username=assigned_user).exists():
+            return Response(
+                {
+                    "detail": "Assigned user not found!",
+                    "status": "Unsuccessful",
+                    "admin_user":admin_user,
+                    "assigned_user":assigned_user
+                },
+                status = status.HTTP_400_BAD_REQUEST
+            )
+
+        if not AuthUser.objects.filter(username=admin_user, is_staff=True).exists():
+            return Response(
+                {
+                    "detail": "Admin user not found!",
+                    "status": "Unsuccessful"
+                },
+                status = status.HTTP_400_BAD_REQUEST
+            )
+
+        if start_date > end_date:
+            return Response(
+                {
+                    "detail": "Start date is after end date?!?!",
+                    "status": "Unsuccessful"
+                },
+                status = status.HTTP_400_BAD_REQUEST
+            )
+
+        key = {
+            "assigned_user":AuthUser.objects.get(username=assigned_user).id,
+            "administrator":AuthUser.objects.get(username=admin_user).id,
+            "key_name":key_name,
+            "not_valid_after":end_date,
+            "not_valid_before":start_date,
+            "is_revoked": False,
+        }
+
+        key_serializer = KeySerializer(data=key)
+        key_serializer.is_valid(raise_exception=True)
+        key_serializer.save()
+
+        return Response(
+            key,
+            status=status.HTTP_201_CREATED
+        )
+
+
+
+
+
+
 
 def unlock_attempt(attempt_data):
     attempt_serializer = UnlockAttemptSerializer(data=attempt_data)

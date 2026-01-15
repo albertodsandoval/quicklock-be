@@ -45,3 +45,17 @@ class UnlockAttemptMiniSerializer(serializers.Serializer):
 	class Meta:
 		model = UnlockAttempts
 		fields = ['user','lock','key','attempted_at','permission','result','reason']
+
+class KeyGenerationSerializer(serializers.ModelSerializer):
+	username = serializers.CharField()
+	class Meta: 
+		model = Keys
+		fields = ['username','not_valid_after','not_valid_before','key_name']
+
+class KeySerializer(serializers.ModelSerializer):
+	created_at = serializers.DateTimeField(required=False)
+	issued_ad = serializers.DateTimeField(required=False)
+
+	class Meta:
+		model = Keys 
+		fields = '__all__'
