@@ -38,7 +38,7 @@ We need to create a ".env" file to fill out information specific to you.
 * Create a new file called ".env"
 * Paste the contents of ".env.example" into your new ".env" file
 * Fill out POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_HOST
- * Contact me at alberto.sandoval.domingo@gmail.com if you need this info
+  * Contact me at alberto.sandoval.domingo@gmail.com if you need this info
 
 ### Run the server!
 Now all we need to do is run the server.
