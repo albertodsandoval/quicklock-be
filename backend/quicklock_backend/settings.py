@@ -45,6 +45,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+    "DEFAULT_SCHEMA_CLASS":"drf_spectacular.openapi.AutoSchema",
 }
 
 SIMPLE_JWT = {
@@ -67,6 +68,7 @@ INSTALLED_APPS = [
     'user_auth',
     'embedded',
     "corsheaders",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -174,3 +176,10 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "quicklock.team@gmail.com"
 EMAIL_HOST_PASSWORD = "yvsv znij rqdh oclq"  # NOT your normal password
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Backend API Docs',
+    'DESCRIPTION': 'WE ARE QUICKLOCK',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}

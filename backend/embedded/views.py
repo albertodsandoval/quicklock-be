@@ -1,9 +1,10 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
 from .models import Keys, Locks, AuthUser, KeyLockPermissions, UnlockAttempts
-from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptMiniSerializer, KeyGenerationSerializer, KeySerializer
+from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptMiniSerializer, KeyGenerationSerializer, KeySerializer, RequestStatusResponseSerializer
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 from django.core import serializers
 from django.utils import timezone
 from django.db.models import Q
@@ -12,36 +13,72 @@ from .utils import create_key, test_user_access, unlock_attempt, validate_data, 
 
 
 
+# class RequestStatusView(APIView):
+#     permission_classes = [permissions.AllowAny]
+
+#     @extend_schema(
+#         summary="Checks status of a lock",
+#         request=LockIdSerializer,
+#         responses=RequestStatusResponseSerializer
+#     )
+#     def post(self, request):
+#         serializer = LockIdSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+
+
+#         lock_id = serializer.validated_data['lock_id']
+
+#         try:
+#             lock = Locks.objects.get(lock_id=lock_id)
+#             response_data = {
+#                 "lock_id": lock_id,
+#                 "request_status": True,
+#                 "lock_status": lock.status,
+#             }
+#         except Locks.DoesNotExist:
+#             return Response(
+#                 {"detail": "Invalid Lock ID"},
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         response_serializer = RequestStatusResponseSerializer(response_data)
+
+#         return Response(
+#                 {
+#                     "lock_id": lock_id,
+#                     "request_status": True,
+#                     "lock_status": lock.status
+#                 },
+#                 status=status.HTTP_200_OK,
+#             )
+
 class RequestStatusView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        summary="Checks status of a lock",
+        request=LockIdSerializer,
+        responses={
+            200: RequestStatusResponseSerializer,
+            404: OpenApiResponse(description="Invalid Lock ID"),
+        },
+    )
     def post(self, request):
-        serializer = LockIdSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        req_serializer = LockIdSerializer(data=request.data)
+        req_serializer.is_valid(raise_exception=True)
 
+        lock_id = req_serializer.validated_data["lock_id"]
 
-        lock_id = serializer.validated_data['lock_id']
+        lock = get_object_or_404(Locks, lock_id=lock_id)
 
-        try:
-            lock = Locks.objects.get(lock_id=lock_id)
-        except Locks.DoesNotExist:
-            return Response(
-                {
-                    "lock_id": lock_id,
-                    "request_status": False,
-                    "reason": "Invalid Lock ID",
-                },
-                status=status.HTTP_200_OK,
-            )
+        response_data = {
+            "lock_id": lock_id,
+            "request_status": True,
+            "lock_status": lock.status,
+        }
+        res_serializer = RequestStatusResponseSerializer(response_data)
 
-        return Response(
-                {
-                    "lock_id": lock_id,
-                    "request_status": True,
-                    "lock_status": lock.status
-                },
-                status=status.HTTP_200_OK,
-            )
+        return Response(res_serializer.data, status=status.HTTP_200_OK)
 
 class MobileLockAccessView(APIView):
     permission_classes = [permissions.IsAuthenticated]  # requires JWT-authenticated user

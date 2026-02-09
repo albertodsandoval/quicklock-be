@@ -1,6 +1,7 @@
 from .serializer import RegistrationSerializer, SendEmailSerializer 
 from django.contrib.auth.models import User
 from rest_framework.decorators import api_view, permission_classes
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.core.mail import send_mail
@@ -28,6 +29,14 @@ class UserInfoView(APIView):
 class RegisterUserView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    # @extend_schema(
+    #     summary="Takes user information and creates an account in database. Endpoint can register both admin and regular users.",
+    #     request=RegistrationSerializer,
+    #     responses={
+    #         200: ,
+    #         500:,
+    #     },
+    # )
     def post(self, request):
 
         serializer = RegistrationSerializer(data=request.data)

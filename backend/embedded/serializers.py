@@ -24,6 +24,13 @@ class UnlockAttemptSerializer(ModelSerializer):
 class LockIdSerializer(serializers.Serializer):
     lock_id = serializers.CharField()
 
+class RequestStatusResponseSerializer(serializers.Serializer):
+    lock_id = serializers.IntegerField()
+    request_status = serializers.BooleanField()
+    lock_status = serializers.BooleanField(required=False)
+    reason = serializers.CharField(required=False)
+
+
 class CardRequestSerializer(serializers.Serializer):
     lock_id = serializers.CharField()
     uid = serializers.CharField()
