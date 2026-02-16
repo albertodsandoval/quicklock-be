@@ -1,68 +1,22 @@
+
 from django.shortcuts import render
 from rest_framework.views import APIView
 from .models import Keys, Locks, AuthUser, KeyLockPermissions, UnlockAttempts
-from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptMiniSerializer, KeyGenerationSerializer, KeySerializer, RequestStatusResponseSerializer
+from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptMiniSerializer, KeyGenerationSerializer, KeySerializer, RequestStatusResponseSerializer, LockSerializer, LockStatusSerializer, UnlockAttemptSerializer
 from rest_framework.response import Response
-from rest_framework import status, permissions
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from rest_framework.decorators import action
+from rest_framework import status, permissions, viewsets
 from django.core import serializers
 from django.utils import timezone
 from django.db.models import Q
 from django.http import JsonResponse
-from .utils import create_key, test_user_access, unlock_attempt, validate_data, create_key_lock_permission
+from .utils import create_key, test_user_access, validate_data, create_key_lock_permission
+from .services import MobileUnlockStrategy, CardUnlockStrategy
 
-
-
-# class RequestStatusView(APIView):
-#     permission_classes = [permissions.AllowAny]
-
-#     @extend_schema(
-#         summary="Checks status of a lock",
-#         request=LockIdSerializer,
-#         responses=RequestStatusResponseSerializer
-#     )
-#     def post(self, request):
-#         serializer = LockIdSerializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-
-
-#         lock_id = serializer.validated_data['lock_id']
-
-#         try:
-#             lock = Locks.objects.get(lock_id=lock_id)
-#             response_data = {
-#                 "lock_id": lock_id,
-#                 "request_status": True,
-#                 "lock_status": lock.status,
-#             }
-#         except Locks.DoesNotExist:
-#             return Response(
-#                 {"detail": "Invalid Lock ID"},
-#                 status=status.HTTP_404_NOT_FOUND
-#             )
-
-#         response_serializer = RequestStatusResponseSerializer(response_data)
-
-#         return Response(
-#                 {
-#                     "lock_id": lock_id,
-#                     "request_status": True,
-#                     "lock_status": lock.status
-#                 },
-#                 status=status.HTTP_200_OK,
-#             )
 
 class RequestStatusView(APIView):
     permission_classes = [permissions.AllowAny]
 
-    @extend_schema(
-        summary="Checks status of a lock",
-        request=LockIdSerializer,
-        responses={
-            200: RequestStatusResponseSerializer,
-            404: OpenApiResponse(description="Invalid Lock ID"),
-        },
-    )
     def post(self, request):
         req_serializer = LockIdSerializer(data=request.data)
         req_serializer.is_valid(raise_exception=True)
@@ -79,6 +33,39 @@ class RequestStatusView(APIView):
         res_serializer = RequestStatusResponseSerializer(response_data)
 
         return Response(res_serializer.data, status=status.HTTP_200_OK)
+
+class LockViewSet(viewsets.ModelViewSet):
+    """
+    A viewset for performing CRUD operations on Locks
+    """
+    serializer_class = LockSerializer
+    queryset = Locks.objects.all()
+    lookup_field = "lock_id"
+
+    @action(detail=True, methods=['get'], serializer_class=LockStatusSerializer)
+    def status(self, request, pk=None):
+        lock = self.get_object()
+        return Response({"lock_id": lock.lock_id, "status": lock.status})
+
+    @action(detail=True, methods=['post'])
+    def mobile_unlock(self, request, lock_id=None):
+        lock = self.get_object()
+        service = MobileUnlockStrategy(user = request.user, lock_id=lock.lock_id)
+        unlock_attempt = service.execute()
+
+        return Response(UnlockAttemptSerializer(unlock_attempt).data)
+
+    @action(detail=True, methods=['post'], serializer_class=CardRequestSerializer)
+    def card_unlock(self, request, lock_id=None):
+        lock = self.get_object()
+        service = CardUnlockStrategy(uid = request.data.get('uid'), lock_id=request.lock_id)
+        unlock_attempt = service.execute()
+
+        return Response(UnlockAttemptSerializer(unlock_attempt).data)
+
+
+
+    
 
 class MobileLockAccessView(APIView):
     permission_classes = [permissions.IsAuthenticated]  # requires JWT-authenticated user
