@@ -12,6 +12,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from .utils import create_key, test_user_access, validate_data, create_key_lock_permission
 from .services import MobileUnlockStrategy, CardUnlockStrategy
+from drf_yasg.utils import swagger_auto_schema
 
 
 class RequestStatusView(APIView):
@@ -42,20 +43,31 @@ class LockViewSet(viewsets.ModelViewSet):
     queryset = Locks.objects.all()
     lookup_field = "lock_id"
 
-    @action(detail=True, methods=['get'], serializer_class=LockStatusSerializer)
+    @action(detail=True, methods=['get'], permission_classes=[])
     def status(self, request, pk=None):
         lock = self.get_object()
         return Response({"lock_id": lock.lock_id, "status": lock.status})
 
-    @action(detail=True, methods=['post'])
+    @swagger_auto_schema(
+        request_body=None,
+        response={200: UnlockAttemptSerializer},
+        security=[{"Bearer": []}],
+    )
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def mobile_unlock(self, request, lock_id=None):
         lock = self.get_object()
         service = MobileUnlockStrategy(user = request.user, lock_id=lock.lock_id)
         unlock_attempt = service.execute()
+        print(unlock_attempt.reason)
 
         return Response(UnlockAttemptSerializer(unlock_attempt).data)
 
-    @action(detail=True, methods=['post'], serializer_class=CardRequestSerializer)
+    @swagger_auto_schema(
+        request_body=None,
+        response={200: UnlockAttemptSerializer},
+        security=[{"Bearer": []}],
+    )
+    @action(detail=True, methods=['post'], serializer_class=CardRequestSerializer, permission_classes=[permissions.IsAuthenticated])
     def card_unlock(self, request, lock_id=None):
         lock = self.get_object()
         service = CardUnlockStrategy(uid = request.data.get('uid'), lock_id=request.lock_id)

@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'access',
     "corsheaders",
     'drf_yasg',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -182,4 +183,15 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'WE ARE QUICKLOCK',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+}
+
+SWAGGER_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT format: Bearer <token>",
+        }
+    },
 }

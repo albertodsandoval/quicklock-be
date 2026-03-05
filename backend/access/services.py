@@ -5,11 +5,6 @@ from datetime import datetime
 from django.db.models import Q
 
 
-@transaction.atomic
-def mobile_toggle_lock(*, user, lock_id) -> dict:
-    # heavy logic here
-    return {"lock_id": lock_id, "status": True, "reason": None}
-
 class BaseUnlockStrategy(ABC):
     def __init__(self, lock_id):
         self.lock_id = lock_id
@@ -26,7 +21,7 @@ class BaseUnlockStrategy(ABC):
     def _toggle_and_log(self, actor):
         now = datetime.now()
 
-        lock = Locks.objects.get(lock_id=self.lock_id)
+        lock = Locks.objects.filter(lock_id=self.lock_id).first()
         if not lock:
             return create_lock_access_attempt(
                 user=actor,
@@ -97,7 +92,7 @@ class CardUnlockStrategy(BaseUnlockStrategy):
         self.uid = uid
 
     def resolve_actor(self):
-        user = AuthUser.objects.get(keys_credential=uid)
+        user = AuthUser.objects.get(keys_credential=self.uid)
         return user
 
 def create_lock_access_attempt(
@@ -118,7 +113,8 @@ def create_lock_access_attempt(
         presented_credential=presented_credential,
         attempted_at=attempted_at,
         permission=permission,
-        result=result
+        result=result,
+        reason=reason
     )
     unlock_attempt.save()
 

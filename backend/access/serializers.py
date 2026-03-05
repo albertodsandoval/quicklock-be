@@ -30,7 +30,6 @@ class RequestStatusResponseSerializer(Serializer):
 
 
 class CardRequestSerializer(Serializer):
-    lock_id = serializers.CharField()
     uid = serializers.CharField()
 
 class UserMiniSerializer(ModelSerializer):
