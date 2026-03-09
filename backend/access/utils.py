@@ -81,7 +81,7 @@ def validate_data(assigned_user, admin_user, start_date, end_date, lock_id):
             }
         )
 
-    if start_date > end_date:
+    if end_date is not None and start_date > end_date:
         raise ValidationError(
             {
                 "detail": "Start date is after end date?!?!",

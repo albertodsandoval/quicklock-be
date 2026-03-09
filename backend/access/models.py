@@ -7,6 +7,7 @@
 # Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
 from datetime import datetime
+from django.db.models import Q, F
 
 
 class AuthGroup(models.Model):
@@ -147,6 +148,12 @@ class Keys(models.Model):
     not_valid_before = models.DateTimeField()
 
     class Meta:
+        constraints = [
+            models.CheckConstraint(
+                name="start_date_before_expiry",
+                check=Q(not_valid_before__lt=F("not_valid_after"))
+            )
+        ]
         managed = False
         db_table = 'keys'
 
