@@ -69,6 +69,9 @@ class KeyGenerationSerializer(ModelSerializer):
 	class Meta: 
 		model = Keys
 		fields = ['username','not_valid_after','not_valid_before','key_name','lock_id']
+		extra_kwargs = {
+			'not_valid_after': {'required': False}
+		}
 
 class KeySerializer(ModelSerializer):
 	created_at = serializers.DateTimeField(required=False)

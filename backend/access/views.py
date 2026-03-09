@@ -282,9 +282,14 @@ class GenerateKeyView(APIView):
         admin_user = request.user
         assigned_user = AuthUser.objects.filter(username=serializer.validated_data['username']).first()
 
-        # conditions
-        end_date = serializer.validated_data["not_valid_after"]
+        # conditions 
         start_date = serializer.validated_data["not_valid_before"]
+
+        if serializer.validated_data.get('not_valid_after') is not None:
+            end_date = serializer.validated_data["not_valid_after"]
+        else:
+            end_date = None
+
         key_name = serializer.validated_data["key_name"]
         lock_id = serializer.validated_data["lock_id"]
 
