@@ -8,8 +8,6 @@ from django.db.models import Q
 from .services import MobileUnlockStrategy, CardUnlockStrategy
 from drf_yasg.utils import swagger_auto_schema, no_body
 
-
-
 # ---------- LOCK VIEW SET --------------
 class LockViewSet(viewsets.ModelViewSet):
     serializer_class = LockSerializer
@@ -69,7 +67,6 @@ class LockViewSet(viewsets.ModelViewSet):
         return Response(UnlockAttemptSerializer(unlock_attempt).data)
 
 
-
 # ---------- KEY VIEW SETS -------------
 class KeyViewSet(viewsets.ModelViewSet):
     serializer_class = KeySerializer
@@ -94,7 +91,6 @@ class KeyViewSet(viewsets.ModelViewSet):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
 
 
 # ---------- LOGS VIEW SET --------------
@@ -135,4 +131,5 @@ class LogsViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
 
         serializer = self.get_serializer(queryset, many=True)
+
         return Response(serializer.data)

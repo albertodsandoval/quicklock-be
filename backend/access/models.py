@@ -7,6 +7,7 @@
 # Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
 from datetime import datetime
+from django.db.models import Q, F
 
 
 class AuthGroup(models.Model):
@@ -140,14 +141,18 @@ class Keys(models.Model):
     administrator = models.ForeignKey('AuthUser', models.DO_NOTHING, related_name='keys_administrator_set')
     credential = models.TextField(unique=True, blank=True, null=True)
     key_name = models.TextField(blank=True, null=True)
-    issued_ad = models.DateTimeField(default=datetime.now())
     not_valid_after = models.DateTimeField(blank=True, null=True)
-    is_revoked = models.BooleanField()
+    is_revoked = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=datetime.now())
     not_valid_before = models.DateTimeField()
 
     class Meta:
-        managed = False
+        constraints = [
+            models.CheckConstraint(
+                name="start_date_before_expiry",
+                check=Q(not_valid_before__lt=F("not_valid_after"))
+            )
+        ]
         db_table = 'keys'
 
 

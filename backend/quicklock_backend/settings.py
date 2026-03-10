@@ -44,8 +44,7 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
-    ),
-    "DEFAULT_SCHEMA_CLASS":"drf_spectacular.openapi.AutoSchema",
+    )
 }
 
 SIMPLE_JWT = {
@@ -66,9 +65,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'user_auth',
-    'embedded',
+    'access',
     "corsheaders",
-    "drf_spectacular",
+    'drf_yasg',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -182,4 +182,15 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'WE ARE QUICKLOCK',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+}
+
+SWAGGER_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT format: Bearer <token>",
+        }
+    },
 }
