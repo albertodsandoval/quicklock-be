@@ -1,60 +1,47 @@
-
-from django.shortcuts import render
-from rest_framework.views import APIView
-from .models import Keys, Locks, AuthUser, KeyLockPermissions, UnlockAttempts
-from .serializers import LockIdSerializer, CardRequestSerializer, UnlockAttemptMiniSerializer, KeyGenerationSerializer, KeySerializer, RequestStatusResponseSerializer, LockSerializer, LockStatusSerializer, UnlockAttemptSerializer
+from .models import Keys, Locks, AuthUser, UnlockAttempts
+from .serializers import CardRequestSerializer, UnlockAttemptMiniSerializer, KeyGenerationSerializer, KeySerializer, LockSerializer, LockStatusSerializer, UnlockAttemptSerializer
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import status, permissions, viewsets
 from django.core import serializers
-from django.utils import timezone
 from django.db.models import Q
-from django.http import JsonResponse
-from .utils import create_key, test_user_access, validate_data, create_key_lock_permission
 from .services import MobileUnlockStrategy, CardUnlockStrategy
-from drf_yasg.utils import swagger_auto_schema
+from drf_yasg.utils import swagger_auto_schema, no_body
 
-
-class RequestStatusView(APIView):
-    permission_classes = [permissions.AllowAny]
-
-    def post(self, request):
-        req_serializer = LockIdSerializer(data=request.data)
-        req_serializer.is_valid(raise_exception=True)
-
-        lock_id = req_serializer.validated_data["lock_id"]
-
-        lock = get_object_or_404(Locks, lock_id=lock_id)
-
-        response_data = {
-            "lock_id": lock_id,
-            "request_status": True,
-            "lock_status": lock.status,
-        }
-        res_serializer = RequestStatusResponseSerializer(response_data)
-
-        return Response(res_serializer.data, status=status.HTTP_200_OK)
-
+# ---------- LOCK VIEW SET --------------
 class LockViewSet(viewsets.ModelViewSet):
-    """
-    A viewset for performing CRUD operations on Locks
-    """
     serializer_class = LockSerializer
     queryset = Locks.objects.all()
-    lookup_field = "lock_id"
-
-    @action(detail=True, methods=['get'], permission_classes=[])
-    def status(self, request, pk=None):
-        lock = self.get_object()
-        return Response({"lock_id": lock.lock_id, "status": lock.status})
 
     @swagger_auto_schema(
-        request_body=None,
-        response={200: UnlockAttemptSerializer},
+        request_body=no_body,
+        responses={200: LockStatusSerializer},
+        security=[],
+    )
+    @action(detail=True, methods=['get'], permission_classes=[])
+    def status(self, request, lock_id=None):
+        """
+        Retrieves status of the lock specified via path parameter
+        'lock_id'.
+        """
+        lock = self.get_object()
+        lock_status = LockStatusSerializer({
+            "lock_id": lock.lock_id,
+            "status": lock.status
+        })
+        return Response(lock_status.data)
+
+    @swagger_auto_schema(
+        request_body=no_body,
+        responses={200: UnlockAttemptSerializer},
         security=[{"Bearer": []}],
     )
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def mobile_unlock(self, request, lock_id=None):
+        """
+        Initiates an attempt to unlock a lock specified via path parameter
+        'lock_id'. User must be logged in. Returns attempt information.
+        """
         lock = self.get_object()
         service = MobileUnlockStrategy(user = request.user, lock_id=lock.lock_id)
         unlock_attempt = service.execute()
@@ -63,267 +50,83 @@ class LockViewSet(viewsets.ModelViewSet):
         return Response(UnlockAttemptSerializer(unlock_attempt).data)
 
     @swagger_auto_schema(
-        request_body=None,
-        response={200: UnlockAttemptSerializer},
+        request_body=CardRequestSerializer,
+        responses={200: UnlockAttemptSerializer},
         security=[{"Bearer": []}],
     )
-    @action(detail=True, methods=['post'], serializer_class=CardRequestSerializer, permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def card_unlock(self, request, lock_id=None):
+        """
+        Initiates an attempt to unlock a lock specified via path parameter
+        'lock_id'. NFC card UID must be provided. Returns attempt information.
+        """
         lock = self.get_object()
         service = CardUnlockStrategy(uid = request.data.get('uid'), lock_id=request.lock_id)
         unlock_attempt = service.execute()
 
         return Response(UnlockAttemptSerializer(unlock_attempt).data)
 
+# ---------- KEY VIEW SETS -------------
+class KeyViewSet(viewsets.ModelViewSet):
+    serializer_class = KeySerializer
+    queryset = Keys.objects.all()
 
-
-    
-
-class MobileLockAccessView(APIView):
-    permission_classes = [permissions.IsAuthenticated]  # requires JWT-authenticated user
-
-    def post(self, request):
-        serializer = LockIdSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        auth_user = AuthUser.objects.get(username=request.user.username)
-
-        lock_id = serializer.validated_data['lock_id']
-
-        try:
-            lock = Locks.objects.get(lock_id=lock_id)
-        except Locks.DoesNotExist:
-            attempt_data = {
-                "permission": "denied",
-                "user": auth_user.id,       
-                "lock": lock_id,     
-                "reason": "Lock does not exist",
-                "attempted_at":timezone.now()
-            }
-            # lock means no access
-            return unlock_attempt(attempt_data)
-
-        lock_status = lock.status
-
-
-        user_has_key = Keys.objects.filter(assigned_user=auth_user)
-
-        # if user has no key
-        if (not user_has_key):
-            attempt_data = {
-                "permission": "denied",
-                "user": auth_user.id,       
-                "lock": lock_id,     
-                "reason": "User has no keys.",
-                "result": lock.status,
-                "attempted_at":timezone.now()
-            }
-
-            return unlock_attempt(attempt_data)
-
-        now = timezone.now()
-
-        # Check if this user has a key that can open this lock
-        has_access = test_user_access(auth_user, lock_id)
-
-        # if user has key but not a valid one
-        if (not has_access):
-            attempt_data = {
-                "permission": "denied",
-                "user": auth_user.id,
-                "lock": lock_id,        # or lock.id, depending on your model
-                "reason": "User has no valid key for this lock.",
-                "result": lock.status,
-                "attempted_at":timezone.now()
-            }
-
-            return unlock_attempt(attempt_data)
-
-        lock_status = not lock.status
-
-        lock.status = lock_status
-        lock.save()
-
-        key_id_row = (
-            KeyLockPermissions.objects
-            .filter(
-                key__assigned_user=auth_user,
-                lock_id=lock_id,  # FK column, safest
-                key__is_revoked=False,
-                key__not_valid_before__lte=now,
-            )
-            .filter(Q(key__not_valid_after__isnull=True) | Q(key__not_valid_after__gte=now))
-            .order_by("-key__not_valid_before", "-key_id")   # pick “most recent” valid key
-            .values("key_id")
-            .first()
-        )
-
-        key_id = key_id_row["key_id"]
-
-
-        attempt_data = {
-            "permission": "granted",
-            "user": auth_user.id,
-            "lock": lock_id,
-            "key": key_id,
-            "result": lock.status,
-            "attempted_at":timezone.now()
-        }
-
-        return unlock_attempt(attempt_data)
-
-
-class CardLockAccessView(APIView):
-    permission_classes = [permissions.AllowAny]
-
-    def post(self, request):
-        serializer = CardRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        lock_id = serializer.validated_data['lock_id']
-        uid = serializer.validated_data['uid']
-
-
-        try:
-            lock = Locks.objects.get(lock_id=lock_id)
-        except Locks.DoesNotExist:
-            attempt_data = {
-                "permission": "denied",
-                "lock": lock_id,
-                "reason": "Lock does not exist",
-                "attempted_at":timezone.now(),
-                "presented_credential": uid
-            }
-
-            # no lock means no access
-            return unlock_attempt(attempt_data)
-
-        lock_status = lock.status
-
-        try:
-            key = Keys.objects.get(credential=uid)
-        except Keys.DoesNotExist:
-            attempt_data = {
-                "permission": "denied",
-                "lock": lock_id,
-                "reason": "Key does not exist",
-                "result": lock_status,
-                "attempted_at":timezone.now(),
-                "presented_credential": uid
-            }
-
-            # no key means no access
-            return unlock_attempt(attempt_data)
-
-        auth_user = key.assigned_user
-
-        # check if this uid has a key that can open this lock
-        has_access = KeyLockPermissions.objects.filter(
-            key__assigned_user=auth_user,
-            lock__lock_id=lock_id
-        ).exists()
-
-        if(has_access):
-            lock.status = not lock_status
-            lock.save()
-
-            attempt_data = {
-                "permission": "granted",
-                "attempted_at": timezone.now(),
-                "user": auth_user.id,        # FK → pass the ID
-                "lock": lock_id,        # or lock.id, depending on your model
-                "key": key.key_id if key else None,
-                "result": lock.status,
-                "presented_credential": uid,
-            }
-
-            return unlock_attempt(attempt_data)
-
-        attempt_data = {
-            "permission": "denied",
-            "attempted_at": timezone.now(),
-            "user": auth_user.id,        # FK → pass the ID
-            "lock": lock_id,        # or lock.id, depending on your model
-            "key": key.key_id if key else None,
-            "result": lock.status,
-            "presented_credential": uid,
-            "reason": "This user does not possess a key with permission to this lock."
-        }
-
-        return unlock_attempt(attempt_data)
-
-
-class LogsByUserView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    serializer_class = UnlockAttemptMiniSerializer
-
-    def get(self, request):
-        user = request.user
-
-        logs = UnlockAttempts.objects.filter(
-            user__username=user
-        ).order_by('-attempted_at')
-
-        return Response(
-            UnlockAttemptMiniSerializer(logs, many=True).data,
-            status=status.HTTP_200_OK,
-        )
-
-
-class GenerateKeyView(APIView):
-    permission_classes = [permissions.IsAdminUser]
-
-    def post(self, request):
-
+    @swagger_auto_schema(
+        request_body=KeyGenerationSerializer,
+        responses={200: KeyGenerationSerializer},
+        security=[{"Bearer": []}],
+    )
+    def create(self, request, *args, **kwargs):
+        """
+        Creates a key for a user specified via their email. Leave 
+        not_valid_after empty to make key indefinite.
+        Ignore credential for now.
+        is_revoked defaults to false, it is not required.
+        key_name is not required as well.
+        """
+        request.data['administrator'] = request.user.pk
         serializer = KeyGenerationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-        # users involved
-        admin_user = request.user
-        assigned_user = AuthUser.objects.filter(username=serializer.validated_data['username']).first()
+# ---------- LOGS VIEW SET --------------
+class LogsViewSet(viewsets.ModelViewSet):
+    serializer_class = UnlockAttemptSerializer
+    queryset = UnlockAttempts.objects.all()
 
-        # conditions 
-        start_date = serializer.validated_data["not_valid_before"]
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def read_by_user(self, request):
+        """
+        Returns all access attempts (logs) made by logged in user.
+        """
+        queryset = self.filter_queryset(UnlockAttempts.objects.filter(
+            user=request.user.pk
+        ))
 
-        if serializer.validated_data.get('not_valid_after') is not None:
-            end_date = serializer.validated_data["not_valid_after"]
-        else:
-            end_date = None
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
 
-        key_name = serializer.validated_data["key_name"]
-        lock_id = serializer.validated_data["lock_id"]
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
-        response = validate_data(assigned_user, admin_user, start_date, end_date, lock_id)
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAdminUser])
+    def read_by_admin(self, request):
+        """
+        Returns all access attempts (logs) made on locks owned by the logged
+        in administrator. Must be administrator to access this endpoint.
+        """
+        queryset = self.filter_queryset(UnlockAttempts.objects.filter(
+            lock__administrator_id=request.user.pk
+        ))
 
-        if response:
-            return response
-        key_data = {
-            "assigned_user":assigned_user.id,
-            "administrator":admin_user.id,
-            "key_name":key_name,
-            "not_valid_after":end_date,
-            "not_valid_before":start_date,
-            "is_revoked": False,
-        }
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
 
-        key = create_key(key_data)
-
-        print(key)
-
-        key_lock_permission_data = {
-            "key": key.key_id,
-            "lock": lock_id,
-            "created_at": timezone.now(),
-            "created_by_administrator": admin_user.id
-        }
-
-        key_lock_permission = create_key_lock_permission(
-            key_id=key.key_id,
-            lock_id=lock_id,
-            admin_user=admin_user
-        )
-
-        return Response(
-            key_lock_permission,
-            status=status.HTTP_201_CREATED
-        )
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)

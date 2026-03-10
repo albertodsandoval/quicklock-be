@@ -141,9 +141,8 @@ class Keys(models.Model):
     administrator = models.ForeignKey('AuthUser', models.DO_NOTHING, related_name='keys_administrator_set')
     credential = models.TextField(unique=True, blank=True, null=True)
     key_name = models.TextField(blank=True, null=True)
-    issued_ad = models.DateTimeField(default=datetime.now())
     not_valid_after = models.DateTimeField(blank=True, null=True)
-    is_revoked = models.BooleanField()
+    is_revoked = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=datetime.now())
     not_valid_before = models.DateTimeField()
 
@@ -154,7 +153,6 @@ class Keys(models.Model):
                 check=Q(not_valid_before__lt=F("not_valid_after"))
             )
         ]
-        managed = False
         db_table = 'keys'
 
 

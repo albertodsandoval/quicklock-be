@@ -153,7 +153,6 @@ class Migration(migrations.Migration):
                 ('key_id', models.BigAutoField(primary_key=True, serialize=False)),
                 ('credential', models.TextField(blank=True, null=True, unique=True)),
                 ('key_name', models.TextField(blank=True, null=True)),
-                ('issued_ad', models.DateTimeField()),
                 ('not_valid_after', models.DateTimeField(blank=True, null=True)),
                 ('is_revoked', models.BooleanField()),
                 ('created_at', models.DateTimeField()),
