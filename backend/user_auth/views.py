@@ -76,7 +76,8 @@ class UserByEmailView(APIView):
 
         return Response(
             {
-                "username": user.username
+                "username": user.username,
+                "user_id":user.pk
             }, 
             status = status.HTTP_200_OK
         )

@@ -55,7 +55,7 @@ class LockViewSet(viewsets.ModelViewSet):
         responses={200: UnlockAttemptSerializer},
         security=[{"Bearer": []}],
     )
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[])
     def card_unlock(self, request, lock_id=None):
         """
         Initiates an attempt to unlock a lock specified via path parameter
