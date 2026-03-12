@@ -12,6 +12,7 @@ from drf_yasg.utils import swagger_auto_schema, no_body
 class LockViewSet(viewsets.ModelViewSet):
     serializer_class = LockSerializer
     queryset = Locks.objects.all()
+    lookup_field = "lock_id"
 
     @swagger_auto_schema(
         request_body=no_body,
