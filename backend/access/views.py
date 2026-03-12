@@ -7,6 +7,7 @@ from django.core import serializers
 from django.db.models import Q
 from .services import MobileUnlockStrategy, CardUnlockStrategy
 from drf_yasg.utils import swagger_auto_schema, no_body
+from django.utils import timezone
 
 # ---------- LOCK VIEW SET --------------
 class LockViewSet(viewsets.ModelViewSet):
@@ -66,6 +67,34 @@ class LockViewSet(viewsets.ModelViewSet):
         unlock_attempt = service.execute()
 
         return Response(UnlockAttemptSerializer(unlock_attempt).data)
+
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def list_by_user_access(self, request):
+        """
+        Returns all locks a user has access to determined by the keys 
+        associated with their account.
+        """
+        now = timezone.now()
+        print(request.user.username)
+        queryset = self.filter_queryset(Locks.objects.filter(
+            keylockpermissions__key__assigned_user=request.user.pk,
+            keylockpermissions__key__is_revoked=False,
+            keylockpermissions__key__not_valid_before__lte=now,
+        )
+        .filter(
+            Q(keylockpermissions__key__not_valid_after__isnull=True) |
+            Q(keylockpermissions__key__not_valid_after__gt=now)
+        )
+        .distinct())
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response(serializer.data)
 
 
 # ---------- KEY VIEW SETS -------------
