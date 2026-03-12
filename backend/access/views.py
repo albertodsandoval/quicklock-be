@@ -62,7 +62,7 @@ class LockViewSet(viewsets.ModelViewSet):
         'lock_id'. NFC card UID must be provided. Returns attempt information.
         """
         lock = self.get_object()
-        service = CardUnlockStrategy(uid = request.data.get('uid'), lock_id=request.lock_id)
+        service = CardUnlockStrategy(uid = request.data.get('uid'), lock_id=lock.lock_id)
         unlock_attempt = service.execute()
 
         return Response(UnlockAttemptSerializer(unlock_attempt).data)

@@ -92,7 +92,7 @@ class CardUnlockStrategy(BaseUnlockStrategy):
         self.uid = uid
 
     def resolve_actor(self):
-        user = AuthUser.objects.get(keys_credential=self.uid)
+        user = AuthUser.objects.get(keys__credential=self.uid)
         return user
 
 def create_lock_access_attempt(
