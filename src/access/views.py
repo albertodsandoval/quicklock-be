@@ -1,17 +1,15 @@
-from .models import Keys, Locks, AuthUser, UnlockAttempts
+from .models import Keys, Locks, UnlockAttempts
 from .serializers import *
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import status, permissions, viewsets
-from django.core import serializers
-from django.db.models import Q, F, OuterRef, Subquery, Exists
+from django.db.models import Q, OuterRef, Exists
 from .services import MobileUnlockStrategy, CardUnlockStrategy
 from drf_yasg.utils import swagger_auto_schema, no_body
 from django.utils import timezone
 
+
 # ---------- LOCK VIEW SET --------------
-
-
 class LockViewSet(viewsets.ModelViewSet):
     serializer_class = LockSerializer
     queryset = Locks.objects.all()
@@ -122,8 +120,9 @@ class KeyViewSet(viewsets.ModelViewSet):
         is_revoked defaults to false, it is not required.
         key_name is not required as well.
         """
-        request.data['administrator'] = request.user.pk
-        serializer = KeyGenerationSerializer(data=request.data)
+        data = request.data.copy()
+        data['administrator'] = request.user.pk
+        serializer = KeyGenerationSerializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
@@ -146,7 +145,8 @@ class LogsViewSet(viewsets.ModelViewSet):
     )
     def read_by_user(self, request):
         """
-        Returns all access attempts (logs) made by logged in user.
+        Returns all access all attempts on locks the user currently has access
+        to, limited to attempts after they got access
         """
 
         now = timezone.now()
@@ -198,9 +198,10 @@ class LogsViewSet(viewsets.ModelViewSet):
         Returns all access attempts (logs) made on locks owned by the logged
         in administrator. Must be administrator to access this endpoint.
         """
-        queryset = self.filter_queryset(UnlockAttempts.objects.filter(
-            lock__administrator_id=request.user.pk
-        ))
+        queryset = self.filter_queryset(
+            UnlockAttempts.objects.select_related('lock', 'user', 'key').filter(
+                lock__administrator_id=request.user.pk
+            ))
 
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -209,4 +210,37 @@ class LogsViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(queryset, many=True)
 
+        return Response(serializer.data)
+
+
+# ------- KEY LOCK PERMISSIONS VIEWSET -------
+class KeyLockPermissionsViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = KeyLockPermissionsSerializer
+    queryset = KeyLockPermissions.objects.all()
+
+    @swagger_auto_schema(
+        responses={200: KeyLockPermissionsSerializer(many=True)},
+        security=[],
+    )
+    @action(
+        detail=False,
+        methods=['get'],
+        permission_classes=[],
+    )
+    def by_lock(self, request):
+        """
+        Retrieves the current state of KeyLockPermissions
+        and returns with information on keys and locks.
+        """
+        lock_id = request.query_params.get('lock_id')
+        valid_keys = Keys.objects.valid()
+
+        queryset = self.filter_queryset(
+            KeyLockPermissions.objects.filter(
+                lock_id=lock_id,
+                key__in=valid_keys
+            )
+        )
+
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)

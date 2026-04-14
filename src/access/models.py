@@ -11,6 +11,7 @@
 from django.db import models
 from datetime import datetime
 from django.db.models import Q, F
+from .querysets import KeyQuerySet
 
 
 class AuthGroup(models.Model):
@@ -129,11 +130,14 @@ class DjangoSession(models.Model):
 
 
 class KeyLockPermissions(models.Model):
+    pk = models.CompositePrimaryKey("key_id", "lock_id")
+
     key = models.ForeignKey('Keys', models.DO_NOTHING)
     lock = models.ForeignKey('Locks', models.DO_NOTHING)
     created_at = models.DateTimeField()
     created_by_administrator = models.ForeignKey(
-        AuthUser, models.DO_NOTHING, blank=True, null=True)
+        AuthUser, models.DO_NOTHING, blank=True, null=True
+    )
 
     class Meta:
         managed = False
@@ -152,6 +156,8 @@ class Keys(models.Model):
     is_revoked = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=datetime.now())
     not_valid_before = models.DateTimeField()
+
+    objects = KeyQuerySet.as_manager()
 
     class Meta:
         constraints = [

@@ -3,6 +3,9 @@ from abc import ABC, abstractmethod
 from .models import AuthUser, KeyLockPermissions, UnlockAttempts, Keys, Locks
 from datetime import datetime
 from django.db.models import Q
+import requests
+
+esp32_ip = ""
 
 
 class BaseUnlockStrategy(ABC):
@@ -63,8 +66,39 @@ class BaseUnlockStrategy(ABC):
                 reason="User does not have a valid key for this lock."
             )
 
-        lock.status = not lock.status
-        lock.save()
+        r = requests.post(
+            f"http://{esp32_ip}/unlock",
+            headers={"Authorization": "Bearer secret123"},
+            timeout=3,
+        )
+        try:
+            r.raise_for_status()
+            data = r.json()
+        except Exception:
+            return create_lock_access_attempt(
+                user=actor,
+                lock=lock,
+                key=key if key else None,
+                presented_credential=None,
+                attempted_at=now,
+                permission='denied',
+                result=lock.status,
+                reason="Connection with lock failed."
+            )
+
+        if data.get('status') is True:
+            lock.status = not lock.status
+            lock.save()
+            return create_lock_access_attempt(
+                user=actor,
+                lock=lock,
+                key=key if key else None,
+                presented_credential=None,
+                attempted_at=now,
+                permission='granted',
+                result=lock.status,
+                reason=None
+            )
 
         return create_lock_access_attempt(
             user=actor,
@@ -72,9 +106,9 @@ class BaseUnlockStrategy(ABC):
             key=key if key else None,
             presented_credential=None,
             attempted_at=now,
-            permission='granted',
+            permission='denied',
             result=lock.status,
-            reason=None
+            reason="Lock malfunction."
         )
 
 
