@@ -1,4 +1,4 @@
-from .serializer import RegistrationSerializer, SendEmailSerializer 
+from .serializer import RegistrationSerializer, SendEmailSerializer
 from django.contrib.auth.models import User
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -18,12 +18,12 @@ class UserInfoView(APIView):
         email = request.user.email
 
         return Response(
-                {
-                    "username": username,
-                    "email": email,
-                },
-            )
- 
+            {
+                "username": username,
+                "email": email,
+            },
+        )
+
 
 class RegisterUserView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -36,20 +36,23 @@ class RegisterUserView(APIView):
         username = serializer.validated_data['username']
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
-        
-        if User.objects.filter(username=username).exists():
-            return Response({"detail": "username already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = User.objects.create_user(username=username, email=email, password=password)
-        
-        if serializer.validated_data['admin'] == True:
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {"detail": "username already exists"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = User.objects.create_user(
+            username=username, email=email, password=password)
+
+        if serializer.validated_data['admin'] is True:
             user.is_staff = True
 
         user.save()
 
-
-        file_path = Path(settings.BASE_DIR) / "user_auth" / "registration_email.txt"
-
+        file_path = Path(settings.BASE_DIR) / "user_auth" / \
+            "registration_email.txt"
 
         try:
             send_mail(
@@ -72,16 +75,15 @@ class UserByEmailView(APIView):
 
         user_email = request.data.get('user_email')
 
-        user = User.objects.filter(email = user_email).first()
+        user = User.objects.filter(email=user_email).first()
 
         return Response(
             {
                 "username": user.username,
-                "user_id":user.pk
-            }, 
-            status = status.HTTP_200_OK
+                "user_id": user.pk
+            },
+            status=status.HTTP_200_OK
         )
-
 
 
 # file importer
