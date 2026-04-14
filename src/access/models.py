@@ -130,14 +130,16 @@ class DjangoSession(models.Model):
 
 
 class KeyLockPermissions(models.Model):
+    pk = models.CompositePrimaryKey("key_id", "lock_id")
+
     key = models.ForeignKey('Keys', models.DO_NOTHING)
     lock = models.ForeignKey('Locks', models.DO_NOTHING)
     created_at = models.DateTimeField()
     created_by_administrator = models.ForeignKey(
-        AuthUser, models.DO_NOTHING, blank=True, null=True)
+        AuthUser, models.DO_NOTHING, blank=True, null=True
+    )
 
     class Meta:
-        unique_together = ('key', 'lock')
         managed = False
         db_table = 'key_lock_permissions'
 
