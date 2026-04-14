@@ -164,6 +164,15 @@ class KeyGenerationSerializer(ModelSerializer):
         return key
 
 
+class KeyLockPermissionsSerializer(ModelSerializer):
+    key = KeySerializer(read_only=True)
+    lock = LockSerializer(read_only=True)
+
+    class Meta:
+        model = KeyLockPermissions
+        fields = '__all__'
+
+
 def create_key_lock_permission(
     *,
     key_id: int,

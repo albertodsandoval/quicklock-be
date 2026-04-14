@@ -8,10 +8,10 @@ from django.db.models import Q, F, OuterRef, Subquery, Exists
 from .services import MobileUnlockStrategy, CardUnlockStrategy
 from drf_yasg.utils import swagger_auto_schema, no_body
 from django.utils import timezone
+from .mixins import MultipleFieldLookupMixin
+
 
 # ---------- LOCK VIEW SET --------------
-
-
 class LockViewSet(viewsets.ModelViewSet):
     serializer_class = LockSerializer
     queryset = Locks.objects.all()
@@ -206,6 +206,33 @@ class LogsViewSet(viewsets.ModelViewSet):
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response(serializer.data)
+
+
+# ------- KEY LOCK PERMISSIONS VIEWSET -------
+class KeyLockPermissionsViewSet(viewsets.ModelViewSet):
+    serializer_class = KeyLockPermissionsSerializer
+    queryset = KeyLockPermissions.objects.all()
+    lookup_field = 'lock_id'
+
+    @swagger_auto_schema(
+        responses={200: KeyLockPermissionsSerializer},
+        security=[],
+    )
+    @action(detail=True, methods=['get'], permission_classes=[])
+    def get_key_lock_permission_state(self, request, lock_id=None):
+        """
+        Retrieves the current state of KeyLockPermissions
+        and returns with information on keys and locks.
+        """
+        queryset = self.filter_queryset(
+            KeyLockPermissions.objects.valid().filter(
+                lock_id=lock_id
+            )
+        )
 
         serializer = self.get_serializer(queryset, many=True)
 

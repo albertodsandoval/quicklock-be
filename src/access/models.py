@@ -11,6 +11,7 @@
 from django.db import models
 from datetime import datetime
 from django.db.models import Q, F
+from .querysets import KeyQuerySet
 
 
 class AuthGroup(models.Model):
@@ -136,6 +137,7 @@ class KeyLockPermissions(models.Model):
         AuthUser, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
+        unique_together = ('key', 'lock')
         managed = False
         db_table = 'key_lock_permissions'
 
@@ -152,6 +154,8 @@ class Keys(models.Model):
     is_revoked = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=datetime.now())
     not_valid_before = models.DateTimeField()
+
+    objects = KeyQuerySet.as_manager()
 
     class Meta:
         constraints = [
