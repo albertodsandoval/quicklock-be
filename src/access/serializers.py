@@ -21,6 +21,12 @@ class UnlockAttemptSerializer(ModelSerializer):
         fields = '__all__'
 
 
+class UserSerializer(ModelSerializer):
+    class Meta:
+        model = AuthUser
+        fields = '__all__'
+
+
 class KeySerializer(ModelSerializer):
     created_at = serializers.DateTimeField(required=False)
 

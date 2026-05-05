@@ -129,8 +129,16 @@ class DjangoSession(models.Model):
 
 
 class KeyLockPermissions(models.Model):
-    key = models.ForeignKey('Keys', models.DO_NOTHING)
-    lock = models.ForeignKey('Locks', models.DO_NOTHING)
+    key = models.ForeignKey(
+        'Keys',
+        models.DO_NOTHING,
+        related_name='lock_permissions'
+    )
+    lock = models.ForeignKey(
+        'Locks',
+        models.DO_NOTHING,
+        related_name='key_permissions'
+    )
     created_at = models.DateTimeField()
     created_by_administrator = models.ForeignKey(
         AuthUser, models.DO_NOTHING, blank=True, null=True)
@@ -143,7 +151,11 @@ class KeyLockPermissions(models.Model):
 class Keys(models.Model):
     key_id = models.BigAutoField(primary_key=True)
     assigned_user = models.ForeignKey(
-        'AuthUser', models.DO_NOTHING, db_column='assigned_user')
+        AuthUser,
+        models.DO_NOTHING,
+        db_column='assigned_user',
+        related_name='assigned_keys'
+    )
     administrator = models.ForeignKey(
         'AuthUser', models.DO_NOTHING, related_name='keys_administrator_set')
     credential = models.TextField(unique=True, blank=True, null=True)

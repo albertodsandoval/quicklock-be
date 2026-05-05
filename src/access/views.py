@@ -210,3 +210,34 @@ class LogsViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
 
         return Response(serializer.data)
+
+
+# ---------- USERS VIEW SET --------------
+class UsersViewSet(viewsets.ModelViewSet):
+    serializer_class = UserSerializer
+    queryset = AuthUser.objects.all()
+
+    @action(
+        detail=False,
+        methods=['get'],
+        permission_classes=[permissions.IsAdminUser]
+    )
+    def read_by_admin(self, request):
+        """
+        Returns all access attempts (logs) made on locks owned by the logged
+        in administrator. Must be administrator to access this endpoint.
+        """
+        queryset = self.filter_queryset(
+            AuthUser.objects.filter(
+                assigned_keys__lock_permissions__lock__administrator=request.user.id
+            ).distinct()
+        )
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response(serializer.data)
