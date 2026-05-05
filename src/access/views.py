@@ -223,13 +223,17 @@ class UsersViewSet(viewsets.ModelViewSet):
         permission_classes=[permissions.IsAdminUser]
     )
     def read_by_admin(self, request):
-        """
-        Returns all access attempts (logs) made on locks owned by the logged
-        in administrator. Must be administrator to access this endpoint.
-        """
+        admin_lock_ids = Locks.objects.filter(
+            administrator_id=request.user.id
+        ).values("lock_id")
+
+        key_ids = KeyLockPermissions.objects.filter(
+            lock_id__in=admin_lock_ids
+        ).values("key_id")
+
         queryset = self.filter_queryset(
             AuthUser.objects.filter(
-                assigned_keys__lock_permissions__lock__administrator=request.user.id
+                keys__key_id__in=key_ids
             ).distinct()
         )
 
@@ -239,5 +243,4 @@ class UsersViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
 
         serializer = self.get_serializer(queryset, many=True)
-
         return Response(serializer.data)
