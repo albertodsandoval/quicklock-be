@@ -78,18 +78,21 @@ class RegisterUserView(APIView):
         file_path = Path(settings.BASE_DIR) / "user_auth" / \
             "registration_email.txt"
 
-        try:
-            send_mail(
-                "Welcome to QuickLock!",
-                import_file(file_path),
-                settings.DEFAULT_FROM_EMAIL,
-                [email],
-                fail_silently=False,
-            )
-            return Response({"message": "Email sent successfully!"})
+        # try:
+        #     send_mail(
+        #         "Welcome to QuickLock!",
+        #         import_file(file_path),
+        #         settings.DEFAULT_FROM_EMAIL,
+        #         [email],
+        #         fail_silently=False,
+        #     )
+        # except Exception as e:
+        #     print(f"Email failed: {e}")
 
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
+        return Response(
+            {"message": "User registered successfully"},
+            status=status.HTTP_201_CREATED
+        )
 
 
 class UserByEmailView(APIView):
