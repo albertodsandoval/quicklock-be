@@ -27,13 +27,13 @@ class BaseUnlockStrategy(ABC):
                 user=actor,
                 lock=lock,
                 key=key if key else None,
-                presented_credential= None,
+                presented_credential=None,
                 attempted_at=now,
                 permission='denied',
                 result=lock.status,
                 reason="Lock does not exist"
             )
-        
+
         key = (
             Keys.objects
             .filter(
@@ -58,11 +58,10 @@ class BaseUnlockStrategy(ABC):
                 key=None,
                 presented_credential=None,
                 attempted_at=now,
-                permission='denied', 
+                permission='denied',
                 result=lock.status,
                 reason="User does not have a valid key for this lock."
             )
-
 
         lock.status = not lock.status
         lock.save()
@@ -71,12 +70,14 @@ class BaseUnlockStrategy(ABC):
             user=actor,
             lock=lock,
             key=key if key else None,
-            presented_credential= None,
+            presented_credential=None,
             attempted_at=now,
             permission='granted',
             result=lock.status,
             reason=None
         )
+
+
 class MobileUnlockStrategy(BaseUnlockStrategy):
     def __init__(self, user, lock_id):
         super().__init__(lock_id)
@@ -86,6 +87,7 @@ class MobileUnlockStrategy(BaseUnlockStrategy):
         user = AuthUser.objects.get(username=self.user.username)
         return user
 
+
 class CardUnlockStrategy(BaseUnlockStrategy):
     def __init__(self, uid, lock_id):
         super().__init__(lock_id)
@@ -94,6 +96,7 @@ class CardUnlockStrategy(BaseUnlockStrategy):
     def resolve_actor(self):
         user = AuthUser.objects.get(keys__credential=self.uid)
         return user
+
 
 def create_lock_access_attempt(
     *,

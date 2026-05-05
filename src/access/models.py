@@ -2,9 +2,12 @@
 # You'll have to do the following manually to clean this up:
 #   * Rearrange models' order
 #   * Make sure each model has one field with primary_key=True
-#   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
-#   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
-# Feel free to rename the models, but don't rename db_table values or field names.
+#   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the
+#       desired behavior
+#   * Remove `managed = False` lines if you wish to allow Django to create,
+#       modify, and delete the table
+# Feel free to rename the models, but don't rename db_table values or
+#       field names.
 from django.db import models
 from datetime import datetime
 from django.db.models import Q, F
@@ -85,7 +88,8 @@ class DjangoAdminLog(models.Model):
     object_repr = models.CharField(max_length=200)
     action_flag = models.SmallIntegerField()
     change_message = models.TextField()
-    content_type = models.ForeignKey('DjangoContentType', models.DO_NOTHING, blank=True, null=True)
+    content_type = models.ForeignKey(
+        'DjangoContentType', models.DO_NOTHING, blank=True, null=True)
     user = models.ForeignKey(AuthUser, models.DO_NOTHING)
 
     class Meta:
@@ -128,7 +132,8 @@ class KeyLockPermissions(models.Model):
     key = models.ForeignKey('Keys', models.DO_NOTHING)
     lock = models.ForeignKey('Locks', models.DO_NOTHING)
     created_at = models.DateTimeField()
-    created_by_administrator = models.ForeignKey(AuthUser, models.DO_NOTHING, blank=True, null=True)
+    created_by_administrator = models.ForeignKey(
+        AuthUser, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -137,8 +142,10 @@ class KeyLockPermissions(models.Model):
 
 class Keys(models.Model):
     key_id = models.BigAutoField(primary_key=True)
-    assigned_user = models.ForeignKey('AuthUser', models.DO_NOTHING, db_column='assigned_user')
-    administrator = models.ForeignKey('AuthUser', models.DO_NOTHING, related_name='keys_administrator_set')
+    assigned_user = models.ForeignKey(
+        'AuthUser', models.DO_NOTHING, db_column='assigned_user')
+    administrator = models.ForeignKey(
+        'AuthUser', models.DO_NOTHING, related_name='keys_administrator_set')
     credential = models.TextField(unique=True, blank=True, null=True)
     key_name = models.TextField(blank=True, null=True)
     not_valid_after = models.DateTimeField(blank=True, null=True)
@@ -164,6 +171,7 @@ class Locks(models.Model):
     is_active = models.BooleanField(blank=True, null=True)
     created_at = models.DateTimeField()
     status = models.BooleanField()
+
     class Meta:
         managed = False
         db_table = 'locks'
@@ -171,7 +179,8 @@ class Locks(models.Model):
 
 class UnlockAttempts(models.Model):
     attempt_id = models.BigAutoField(primary_key=True)
-    user = models.ForeignKey(AuthUser, models.DO_NOTHING, blank=True, null=True)
+    user = models.ForeignKey(
+        AuthUser, models.DO_NOTHING, blank=True, null=True)
     lock = models.ForeignKey(Locks, models.DO_NOTHING)
     key = models.ForeignKey(Keys, models.DO_NOTHING, blank=True, null=True)
     presented_credential = models.TextField(blank=True, null=True)

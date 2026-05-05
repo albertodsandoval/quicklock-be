@@ -1,15 +1,17 @@
 from .models import Keys, Locks, AuthUser, UnlockAttempts
-from .serializers import CardRequestSerializer, UnlockAttemptMiniSerializer, KeyGenerationSerializer, KeySerializer, LockSerializer, LockStatusSerializer, UnlockAttemptSerializer
+from .serializers import *
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import status, permissions, viewsets
 from django.core import serializers
-from django.db.models import Q
+from django.db.models import Q, F, OuterRef, Subquery, Exists
 from .services import MobileUnlockStrategy, CardUnlockStrategy
 from drf_yasg.utils import swagger_auto_schema, no_body
 from django.utils import timezone
 
 # ---------- LOCK VIEW SET --------------
+
+
 class LockViewSet(viewsets.ModelViewSet):
     serializer_class = LockSerializer
     queryset = Locks.objects.all()
@@ -38,16 +40,19 @@ class LockViewSet(viewsets.ModelViewSet):
         responses={200: UnlockAttemptSerializer},
         security=[{"Bearer": []}],
     )
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    @action(
+        detail=True,
+        methods=['post'],
+        permission_classes=[permissions.IsAuthenticated]
+    )
     def mobile_unlock(self, request, lock_id=None):
         """
         Initiates an attempt to unlock a lock specified via path parameter
         'lock_id'. User must be logged in. Returns attempt information.
         """
         lock = self.get_object()
-        service = MobileUnlockStrategy(user = request.user, lock_id=lock.lock_id)
+        service = MobileUnlockStrategy(user=request.user, lock_id=lock.lock_id)
         unlock_attempt = service.execute()
-        print(unlock_attempt.reason)
 
         return Response(UnlockAttemptSerializer(unlock_attempt).data)
 
@@ -63,29 +68,31 @@ class LockViewSet(viewsets.ModelViewSet):
         'lock_id'. NFC card UID must be provided. Returns attempt information.
         """
         lock = self.get_object()
-        service = CardUnlockStrategy(uid = request.data.get('uid'), lock_id=lock.lock_id)
+        service = CardUnlockStrategy(
+            uid=request.data.get('uid'), lock_id=lock.lock_id)
         unlock_attempt = service.execute()
 
         return Response(UnlockAttemptSerializer(unlock_attempt).data)
 
-    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    @action(
+        detail=False,
+        methods=['get'],
+        permission_classes=[permissions.IsAuthenticated]
+    )
     def list_by_user_access(self, request):
         """
-        Returns all locks a user has access to determined by the keys 
-        associated with their account.
+        Returns all locks a user has access to determined by the
+        keys associated with their account.
         """
         now = timezone.now()
-        print(request.user.username)
         queryset = self.filter_queryset(Locks.objects.filter(
             keylockpermissions__key__assigned_user=request.user.pk,
             keylockpermissions__key__is_revoked=False,
             keylockpermissions__key__not_valid_before__lte=now,
-        )
-        .filter(
+        ).filter(
             Q(keylockpermissions__key__not_valid_after__isnull=True) |
             Q(keylockpermissions__key__not_valid_after__gt=now)
-        )
-        .distinct())
+        ).distinct())
 
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -109,8 +116,8 @@ class KeyViewSet(viewsets.ModelViewSet):
     )
     def create(self, request, *args, **kwargs):
         """
-        Creates a key for a user specified via their email. Leave 
-        not_valid_after empty to make key indefinite.
+        Creates a key for a user specified via their email.
+        Leave not_valid_after empty to make key indefinite.
         Ignore credential for now.
         is_revoked defaults to false, it is not required.
         key_name is not required as well.
@@ -120,7 +127,11 @@ class KeyViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers
+        )
 
 
 # ---------- LOGS VIEW SET --------------
@@ -128,14 +139,46 @@ class LogsViewSet(viewsets.ModelViewSet):
     serializer_class = UnlockAttemptSerializer
     queryset = UnlockAttempts.objects.all()
 
-    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    @action(
+        detail=False,
+        methods=['get'],
+        permission_classes=[permissions.IsAuthenticated]
+    )
     def read_by_user(self, request):
         """
         Returns all access attempts (logs) made by logged in user.
         """
-        queryset = self.filter_queryset(UnlockAttempts.objects.filter(
-            user=request.user.pk
-        ))
+
+        now = timezone.now()
+
+        current_access = KeyLockPermissions.objects.filter(
+            lock_id=OuterRef('lock_id'),
+            key__assigned_user=request.user.pk,
+            key__is_revoked=False,
+            key__not_valid_before__lte=now,
+        ).filter(
+            Q(key__not_valid_after__isnull=True) |
+            Q(key__not_valid_after__gt=now)
+        )
+
+        access_at_attempt = KeyLockPermissions.objects.filter(
+            lock_id=OuterRef('lock_id'),
+            key__assigned_user=request.user.pk,
+            created_at__lte=OuterRef('attempted_at'),
+        )
+
+        queryset = self.filter_queryset(
+            UnlockAttempts.objects.select_related('lock', 'user', 'key')
+            .annotate(
+                has_current_access=Exists(current_access),
+                had_access_before_attempt=Exists(access_at_attempt),
+            )
+            .filter(
+                has_current_access=True,
+                had_access_before_attempt=True,
+            )
+            .order_by('-attempted_at')
+        )
 
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -145,7 +188,11 @@ class LogsViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAdminUser])
+    @action(
+        detail=False,
+        methods=['get'],
+        permission_classes=[permissions.IsAdminUser]
+    )
     def read_by_admin(self, request):
         """
         Returns all access attempts (logs) made on locks owned by the logged

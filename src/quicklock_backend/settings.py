@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+from rest_framework.settings import api_settings
+from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 import os
@@ -35,8 +37,6 @@ DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
 # Application definition
-from datetime import timedelta
-from rest_framework.settings import api_settings
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
