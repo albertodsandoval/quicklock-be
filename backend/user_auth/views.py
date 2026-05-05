@@ -1,5 +1,6 @@
 from .serializer import RegistrationSerializer, SendEmailSerializer 
 from django.contrib.auth.models import User
+from access.models import Locks, AuthUser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -40,16 +41,18 @@ class RegisterUserView(APIView):
         if User.objects.filter(username=username).exists():
             return Response({"detail": "username already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = User.objects.create_user(username=username, email=email, password=password)
-        
-        if serializer.validated_data['admin'] == True:
-            user.is_staff = True
-
         user.save()
+        user = AuthUser.objects.get(pk=user.pk)
 
+        if serializer.validated_data['admin'] is True:
+            user.is_staff = True
+            user.save()
+            lock = Locks.objects.get(pk=1)
+            lock.administrator = user
+            lock.save()
 
-        file_path = Path(settings.BASE_DIR) / "user_auth" / "registration_email.txt"
-
+        file_path = Path(settings.BASE_DIR) / "user_auth" / \
+            "registration_email.txt"
 
         try:
             send_mail(

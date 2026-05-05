@@ -1,0 +1,42 @@
+diff --cc backend/user_auth/views.py
+index d7c51ed,c68ac2e..0000000
+--- a/backend/user_auth/views.py
++++ b/backend/user_auth/views.py
+@@@ -36,20 -37,28 +37,25 @@@ class RegisterUserView(APIView)
+          username = serializer.validated_data['username']
+          email = serializer.validated_data['email']
+          password = serializer.validated_data['password']
+-         
++ 
+          if User.objects.filter(username=username).exists():
+ -            return Response(
+ -                {"detail": "username already exists"},
+ -                status=status.HTTP_400_BAD_REQUEST
+ -            )
+ +            return Response({"detail": "username already exists"}, status=status.HTTP_400_BAD_REQUEST)
+  
+-         user = User.objects.create_user(username=username, email=email, password=password)
+-         
+-         if serializer.validated_data['admin'] == True:
+-             user.is_staff = True
++         user = User.objects.create_user(
++             username=username, email=email, password=password)
+  
+          user.save()
++         user = AuthUser.objects.get(pk=user.pk)
+  
++         if serializer.validated_data['admin'] is True:
++             user.is_staff = True
++             user.save()
++             lock = Locks.objects.get(pk=1)
++             lock.administrator = user
++             lock.save()
+  
+-         file_path = Path(settings.BASE_DIR) / "user_auth" / "registration_email.txt"
+- 
++         file_path = Path(settings.BASE_DIR) / "user_auth" / \
++             "registration_email.txt"
+  
+          try:
+              send_mail(
+* Unmerged path backend/user_auth/views.py
