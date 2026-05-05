@@ -5,6 +5,7 @@ from django.db.models import BigAutoField
 from django.db import connection
 from django.utils import timezone
 from django.db.models import Q
+from pydantic import BaseModel, ValidationError
 
 
 class KeyLockPermissionSerializer(ModelSerializer):
