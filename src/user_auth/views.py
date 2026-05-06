@@ -20,11 +20,13 @@ class UserInfoView(APIView):
     def get(self, request):
         username = request.user.username
         email = request.user.email
+        is_staff = request.user.is_staff
 
         return Response(
             {
                 "username": username,
                 "email": email,
+                "is_staff": is_staff,
             },
         )
 
