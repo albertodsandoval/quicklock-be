@@ -210,6 +210,45 @@ class LogsViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
 
         return Response(serializer.data)
+    
+    @action(
+        detail=False,
+        methods=["get"],
+        permission_classes=[permissions.IsAuthenticated]
+    )
+    def latest_successful(self, request):
+        now = timezone.now()
+
+        if request.user.is_staff:
+            queryset = UnlockAttempts.objects.select_related("user", "lock").filter(
+                lock__administrator_id=request.user.pk,
+                permission="granted",
+            )
+        else:
+            accessible_lock_ids = KeyLockPermissions.objects.filter(
+                key__assigned_user=request.user.pk,
+                key__is_revoked=False,
+                key__not_valid_before__lte=now,
+            ).filter(
+                Q(key__not_valid_after__isnull=True) |
+                Q(key__not_valid_after__gt=now)
+            ).values("lock_id")
+
+            queryset = UnlockAttempts.objects.select_related("user", "lock").filter(
+                lock_id__in=accessible_lock_ids,
+                permission="granted",
+            )
+
+        latest_log = queryset.order_by("-attempted_at").first()
+
+        if not latest_log:
+            return Response(
+                {"detail": "No successful lock attempts found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = self.get_serializer(latest_log)
+        return Response(serializer.data)
 
 
 # ---------- USERS VIEW SET --------------
