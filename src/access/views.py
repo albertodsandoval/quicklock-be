@@ -140,44 +140,19 @@ class LogsViewSet(viewsets.ModelViewSet):
     queryset = UnlockAttempts.objects.all()
 
     @action(
-        detail=False,
-        methods=['get'],
-        permission_classes=[permissions.IsAuthenticated]
+    detail=False,
+    methods=['get'],
+    permission_classes=[permissions.IsAuthenticated]
     )
     def read_by_user(self, request):
         """
-        Returns all access attempts (logs) made by logged in user.
+        Returns only logs made by the logged-in user.
         """
-
-        now = timezone.now()
-
-        current_access = KeyLockPermissions.objects.filter(
-            lock_id=OuterRef('lock_id'),
-            key__assigned_user=request.user.pk,
-            key__is_revoked=False,
-            key__not_valid_before__lte=now,
-        ).filter(
-            Q(key__not_valid_after__isnull=True) |
-            Q(key__not_valid_after__gt=now)
-        )
-
-        access_at_attempt = KeyLockPermissions.objects.filter(
-            lock_id=OuterRef('lock_id'),
-            key__assigned_user=request.user.pk,
-            created_at__lte=OuterRef('attempted_at'),
-        )
-
         queryset = self.filter_queryset(
-            UnlockAttempts.objects.select_related('lock', 'user', 'key')
-            .annotate(
-                has_current_access=Exists(current_access),
-                had_access_before_attempt=Exists(access_at_attempt),
-            )
-            .filter(
-                has_current_access=True,
-                had_access_before_attempt=True,
-            )
-            .order_by('-attempted_at')
+            UnlockAttempts.objects
+            .select_related("lock", "user", "key")
+            .filter(user_id=request.user.pk)
+            .order_by("-attempted_at")
         )
 
         page = self.paginate_queryset(queryset)
