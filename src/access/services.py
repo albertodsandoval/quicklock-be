@@ -1,7 +1,7 @@
 from django.db import transaction
 from abc import ABC, abstractmethod
-from .models import AuthUser, KeyLockPermissions, UnlockAttempts, Keys, Locks
-from datetime import datetime
+from .models import AuthUser, UnlockAttempts, Keys, Locks
+from django.utils import timezone
 from django.db.models import Q
 
 
@@ -11,7 +11,10 @@ class BaseUnlockStrategy(ABC):
 
     @abstractmethod
     def resolve_actor(self):
-        """"""
+        pass
+
+    def get_presented_credential(self):
+        return None
 
     @transaction.atomic
     def execute(self):
@@ -19,19 +22,21 @@ class BaseUnlockStrategy(ABC):
         return self._toggle_and_log(actor)
 
     def _toggle_and_log(self, actor):
-        now = datetime.now()
+        now = timezone.now()
+        presented_credential = self.get_presented_credential()
 
         lock = Locks.objects.filter(lock_id=self.lock_id).first()
+
         if not lock:
             return create_lock_access_attempt(
                 user=actor,
-                lock=lock,
-                key=key if key else None,
-                presented_credential=None,
+                lock=None,
+                key=None,
+                presented_credential=presented_credential,
                 attempted_at=now,
-                permission='denied',
-                result=lock.status,
-                reason="Lock does not exist"
+                permission="denied",
+                result=False,
+                reason="Lock does not exist",
             )
 
         key = (
@@ -51,16 +56,17 @@ class BaseUnlockStrategy(ABC):
             .order_by("-not_valid_before", "-key_id")
             .first()
         )
+
         if not key:
             return create_lock_access_attempt(
                 user=actor,
                 lock=lock,
                 key=None,
-                presented_credential=None,
+                presented_credential=presented_credential,
                 attempted_at=now,
-                permission='denied',
+                permission="denied",
                 result=lock.status,
-                reason="User does not have a valid key for this lock."
+                reason="User does not have a valid key for this lock.",
             )
 
         lock.status = not lock.status
@@ -69,12 +75,12 @@ class BaseUnlockStrategy(ABC):
         return create_lock_access_attempt(
             user=actor,
             lock=lock,
-            key=key if key else None,
-            presented_credential=None,
+            key=key,
+            presented_credential=presented_credential,
             attempted_at=now,
-            permission='granted',
+            permission="granted",
             result=lock.status,
-            reason=None
+            reason=None,
         )
 
 
@@ -84,8 +90,10 @@ class MobileUnlockStrategy(BaseUnlockStrategy):
         self.user = user
 
     def resolve_actor(self):
-        user = AuthUser.objects.get(username=self.user.username)
-        return user
+        return AuthUser.objects.get(username=self.user.username)
+
+    def get_presented_credential(self):
+        return "mobile"
 
 
 class CardUnlockStrategy(BaseUnlockStrategy):
@@ -94,8 +102,10 @@ class CardUnlockStrategy(BaseUnlockStrategy):
         self.uid = uid
 
     def resolve_actor(self):
-        user = AuthUser.objects.get(keys__credential=self.uid)
-        return user
+        return AuthUser.objects.get(keys__credential=self.uid)
+
+    def get_presented_credential(self):
+        return "card"
 
 
 def create_lock_access_attempt(
@@ -117,7 +127,7 @@ def create_lock_access_attempt(
         attempted_at=attempted_at,
         permission=permission,
         result=result,
-        reason=reason
+        reason=reason,
     )
     unlock_attempt.save()
 

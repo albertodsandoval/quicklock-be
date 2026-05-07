@@ -16,6 +16,7 @@ class KeyLockPermissionSerializer(ModelSerializer):
 
 class UnlockAttemptSerializer(ModelSerializer):
     location = serializers.CharField(source='lock.location', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
 
     class Meta:
         model = UnlockAttempts
